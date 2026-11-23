@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>26週護肝穩壓執行儀表板｜完整修正與雙模式每日清單</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for 722 Blood Pressure Trend -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Noto Sans TC & LXGW WenKai TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', 'sans-serif'],
+            serif: ['"LXGW WenKai TC"', 'serif'],
+          },
+          colors: {
+            sage: {
+              50: '#f4f7f4',
+              100: '#e3ebe4',
+              200: '#c7d8c9',
+              300: '#9fbca3',
+              400: '#749b7a',
+              500: '#537e5a',
+              600: '#406446',
+              700: '#35503a',
+              800: '#2c4130',
+              900: '#253629',
+            },
+            yam: {
+              50: '#fff9ed',
+              100: '#fef0d6',
+              200: '#fcddac',
+              300: '#f9c377',
+              400: '#f69f40',
+              500: '#f2821b',
+              600: '#e36711',
+              700: '#bc4e10',
+              800: '#963e15',
+              900: '#793514',
+            },
+            navy: {
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #f4f7f5;
+      color: #1e293b;
+      scroll-behavior: smooth;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(203, 213, 225, 0.72);
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .task-card {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .task-card.completed {
+      background-color: #f4f7f4;
+      border-color: #9fbca3;
+    }
+    .task-card.completed .task-title {
+      text-decoration: line-through;
+      color: #64748b;
+    }
+    .task-card.completed .task-desc {
+      color: #94a3b8;
+    }
+    @keyframes pulseBeat {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+    .beat-active {
+      animation: pulseBeat 0.16s ease-out;
+    }
+    /* Mobile forced layout helper */
+    body[data-effective-mode="mobile"] .dashboard-grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-sage-200 selection:text-sage-900 pb-20">
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 items-center gap-2.5 rounded-2xl bg-navy-900 px-5 py-3 text-white shadow-2xl transition-all duration-300">
+    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">✓</span>
+    <span id="toast-message" class="whitespace-nowrap text-xs font-semibold tracking-wide sm:text-sm">已儲存進度</span>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-navy-900/60 p-4 backdrop-blur-sm">
+    <div class="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+      <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-xl text-rose-600">⚠️</div>
+      <h3 id="confirm-title" class="text-lg font-black text-navy-900">確認重置進度？</h3>
+      <p id="confirm-desc" class="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-sm">此動作將會清除目前的打卡紀錄與血壓數據，無法復原。</p>
+      <div class="mt-6 flex items-center justify-end gap-2.5">
+        <button onclick="closeConfirmModal()" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 sm:text-sm">取消</button>
+        <button id="confirm-action-btn" class="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700 sm:text-sm">確定重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 26-Week Overview Modal -->
+  <div id="overview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-navy-900/65 p-4 backdrop-blur-sm">
+    <div class="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div>
+          <h3 class="text-lg font-black text-navy-900">📅 26 週（半年）總進度地圖</h3>
+          <p class="text-xs text-slate-500">點擊任一週次可立即跳轉檢視與記錄・🩺 標記為每 4 週醫療自我檢核週</p>
+        </div>
+        <button onclick="closeOverviewModal()" class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200">✕</button>
+      </div>
+      <div class="overflow-y-auto p-6 space-y-5" id="overview-modal-body">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- STICKY HEADER: WEEK SELECTOR, MODE SWITCHER & DAY TABS -->
+  <header class="sticky top-0 z-40 border-b border-sage-200/80 bg-white/95 backdrop-blur-md shadow-sm">
+    <div class="mx-auto max-w-6xl px-4 pt-3 pb-2.5 sm:px-6">
+      <!-- Top Bar: Brand + View Mode Switcher + Week Stepper -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sage-600 to-navy-900 text-lg text-white shadow-sm">
+            🌿
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <h1 class="text-sm font-black tracking-tight text-navy-900 sm:text-base">26週護肝穩壓執行儀表板</h1>
+              <span id="header-milestone-badge" class="hidden rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">🩺 4週回診檢核週</span>
+              <span id="hero-phase-badge" class="hidden rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-bold text-sage-800">第一階段</span>
+            </div>
+            <p id="header-phase-subtitle" class="text-[11px] font-semibold text-sage-700">第 1～8 週｜🟢 第一階段：排鈉適應與基本輪替期</p>
+          </div>
+        </div>
+
+        <!-- Right Controls: Mode Switcher + Week Stepper + Overview -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <!-- JSON Backup / Restore -->
+          <div class="flex items-center gap-1">
+            <button onclick="exportBackupJSON()" class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50 sm:text-xs" title="匯出 26 週紀錄備份檔">
+              💾 備份
+            </button>
+            <label class="cursor-pointer rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50 sm:text-xs" title="匯入 JSON 備份檔">
+              📂 還原
+              <input type="file" id="import-json-input" accept=".json,application/json" onchange="importBackupJSON(event)" class="hidden" />
+            </label>
+          </div>
+
+          <!-- Mode Switcher (Auto / Desktop / Mobile) -->
+          <div class="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-0.5" title="切換自動偵測、桌機或手機版面">
+            <span class="hidden items-center gap-1 pl-2 pr-1 text-[11px] font-bold text-slate-600 sm:inline-flex">
+              <span id="mode-icon">🖥️</span>
+              <span id="mode-label">自動：桌機</span>
+            </span>
+            <button onclick="setModePref('auto')" id="mbtn-auto" class="min-h-[34px] rounded-xl bg-navy-900 px-2.5 text-[11px] font-black text-white shadow-2xs transition">自動</button>
+            <button onclick="setModePref('desktop')" id="mbtn-desktop" class="min-h-[34px] rounded-xl px-2.5 text-[11px] font-black text-slate-600 hover:bg-white transition">桌機</button>
+            <button onclick="setModePref('mobile')" id="mbtn-mobile" class="min-h-[34px] rounded-xl px-2.5 text-[11px] font-black text-slate-600 hover:bg-white transition">手機</button>
+          </div>
+
+          <!-- Week Stepper -->
+          <div class="flex items-center gap-1">
+            <button onclick="changeWeek(-1)" id="btn-prev-week" class="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-black text-slate-700 hover:bg-sage-50 disabled:opacity-40" title="上一週">◀</button>
+            <div class="relative">
+              <select id="week-dropdown" onchange="selectWeek(parseInt(this.value, 10))" class="appearance-none rounded-xl border-2 border-sage-600 bg-sage-50 py-1.5 pl-3 pr-7 text-xs font-black text-sage-900 outline-none cursor-pointer sm:text-sm">
+                <!-- Options 1..26 rendered by JS -->
+              </select>
+              <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-sage-700">▼</span>
+            </div>
+            <button onclick="changeWeek(1)" id="btn-next-week" class="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-black text-slate-700 hover:bg-sage-50 disabled:opacity-40" title="下一週">▶</button>
+          </div>
+
+          <button onclick="openOverviewModal()" class="rounded-xl bg-navy-900 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-navy-800 sm:text-xs">
+            26週總覽
+          </button>
+        </div>
+      </div>
+
+      <!-- Day of Week Selector Tabs (Mon - Sun) -->
+      <div class="no-scrollbar mt-2.5 flex items-center justify-between gap-1.5 overflow-x-auto pb-0.5" id="weekday-tabs">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl space-y-6 px-4 pt-5 sm:px-6">
+
+    <!-- HERO DASHBOARD: CURRENT WEEK & DAY STATUS -->
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sage-800 via-sage-700 to-navy-900 p-5 text-white shadow-lg sm:p-7">
+      <div class="relative z-10 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+        <!-- Left: Circular Ring & Day Summary -->
+        <div class="flex items-center gap-4 sm:gap-5">
+          <div class="relative flex h-20 w-20 shrink-0 items-center justify-center sm:h-24 sm:w-24">
+            <svg class="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.15)" stroke-width="10" fill="transparent" />
+              <circle id="progress-ring-circle" cx="50" cy="50" r="42" stroke="#f69f40" stroke-width="10" stroke-linecap="round" fill="transparent"
+                stroke-dasharray="263.89" stroke-dashoffset="263.89" class="transition-all duration-500 ease-out" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="progress-percent" class="text-lg font-black tracking-tight text-white sm:text-xl">0%</span>
+              <span class="text-[10px] font-medium text-sage-200">本日達成</span>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="hero-week-day-badge" class="rounded-full bg-yam-500 px-3 py-0.5 text-xs font-black text-white shadow-sm">第 1 週 · 星期一</span>
+              <span id="today-indicator" class="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-sage-100">今日課表</span>
+              <span id="phase-pill-badge" class="rounded-full bg-emerald-500/30 border border-emerald-300/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-100">第一階段：排鈉適應期</span>
+            </div>
+            <h2 id="day-theme-title" class="font-serif text-lg font-bold text-white sm:text-2xl">血管彈性日 A ＋ 經典超商健康餐盒</h2>
+            <p id="progress-summary-text" class="text-xs text-sage-100 sm:text-sm">已完成 0 / 0 項每日核心任務</p>
+          </div>
+        </div>
+
+        <!-- Right: Current Week 7-Day Matrix + Reset Buttons -->
+        <div class="flex flex-col gap-2.5 rounded-2xl border border-white/15 bg-white/10 p-3.5 backdrop-blur-sm sm:p-4 lg:min-w-[310px]">
+          <div class="flex items-center justify-between">
+            <span id="weekly-matrix-label" class="text-[11px] font-bold uppercase tracking-wider text-sage-200">第 1 週七日達標矩陣</span>
+            <span id="weekly-streak-text" class="text-xs font-black text-yam-300">0 / 7 日滿分</span>
+          </div>
+          <div class="grid grid-cols-7 gap-1.5" id="weekly-mini-overview">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-1 border-t border-white/10">
+            <button onclick="requestReset('today')" class="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-sage-100 hover:bg-rose-500/80 hover:text-white transition">重置本日</button>
+            <button onclick="requestReset('week')" class="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-sage-100 hover:bg-rose-500/80 hover:text-white transition">重置本週</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 1: 722 早晚血壓追蹤 ＋ 週趨勢折線圖 ＋ 心臟內科回診匯出 -->
+    <section class="glass-card rounded-3xl p-5 shadow-sm sm:p-6">
+      <div class="mb-4 flex flex-col justify-between gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-100 text-lg text-rose-700">🩺</span>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-black text-navy-900 sm:text-lg">722 早晚血壓追蹤與週趨勢分析</h3>
+              <span id="bp-week-status-badge" class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">尚無本週紀錄</span>
+            </div>
+            <p class="text-xs text-slate-500">連續 7 天、早晚各量 2 次取平均（起床 1 小時內服藥前 ／ 睡前 1 小時內）</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="saveBPData(true)" class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+            <span>💾</span>
+            <span>儲存本日血壓</span>
+          </button>
+          <button onclick="clearTodayBPData()" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 active:scale-[0.98]">
+            <span>🗑️</span>
+            <span>清空當日</span>
+          </button>
+          <button onclick="exportDoctorReport()" class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-navy-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-navy-800 active:scale-[0.98]">
+            <span>📋</span>
+            <span>一鍵複製心臟內科回診摘要</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- High BP Safety Alert Banner (Dynamic) -->
+      <div id="bp-safety-banner" class="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs leading-relaxed text-slate-700">
+        💡 <strong>運動前安全檢核：</strong>若本日早晨或運動前靜息血壓 <span class="font-bold text-rose-700">&ge; 180/110 mmHg</span>，請暫停靠牆半蹲與原地超慢跑，改執行溫和腹式呼吸與關節繞環。
+      </div>
+
+      <div class="dashboard-grid grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <!-- Left (6 cols): Today's Morning & Evening BP + Weight Input -->
+        <div class="space-y-3.5 lg:col-span-6">
+          <!-- Morning BP Card -->
+          <div class="rounded-2xl border border-amber-200/80 bg-yam-50/40 p-4">
+            <div class="mb-2.5 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-xs font-black text-yam-900">
+                <span>🌅</span> 早晨血壓（起床 1 小時內・服藥前）
+              </span>
+              <span class="text-[11px] font-semibold text-slate-500">兩次量測平均值</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">收縮壓 (高壓)</label>
+                <input type="number" id="bp-am-sbp" placeholder="125" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-yam-500" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">舒張壓 (低壓)</label>
+                <input type="number" id="bp-am-dbp" placeholder="80" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-yam-500" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">脈搏 (次/分)</label>
+                <input type="number" id="bp-am-hr" placeholder="68" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-yam-500" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Evening BP Card -->
+          <div class="rounded-2xl border border-sky-200/80 bg-sky-50/40 p-4">
+            <div class="mb-2.5 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-xs font-black text-sky-900">
+                <span>🌙</span> 睡前血壓（睡前 1 小時內・排尿後）
+              </span>
+              <span class="text-[11px] font-semibold text-slate-500">反映全日排鈉成效</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">收縮壓 (高壓)</label>
+                <input type="number" id="bp-pm-sbp" placeholder="120" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">舒張壓 (低壓)</label>
+                <input type="number" id="bp-pm-dbp" placeholder="76" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500">脈搏 (次/分)</label>
+                <input type="number" id="bp-pm-hr" placeholder="65" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-navy-900 outline-none focus:border-sky-500" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Weight & Weekly Average Summary Strip -->
+          <div class="grid grid-cols-12 gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 items-center">
+            <div class="col-span-5">
+              <label class="block text-[10px] font-bold text-slate-500">⚖️ 本日晨起體重 (kg)</label>
+              <input type="number" step="0.1" id="input-weight" placeholder="例如 74.5" oninput="saveBPData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-black text-navy-900 outline-none focus:border-sage-500" />
+            </div>
+            <div class="col-span-7 border-l border-slate-200 pl-3">
+              <div class="text-[10px] font-bold text-slate-500">📊 本週 722 總平均血壓</div>
+              <div id="weekly-avg-bp-display" class="mt-0.5 text-base font-black text-navy-900 sm:text-lg">-- / -- <span class="text-xs font-normal text-slate-500">mmHg</span></div>
+              <div id="weekly-avg-subtext" class="text-[10px] text-slate-500">早均 --/-- ・ 晚均 --/--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right (6 cols): 7-Day BP Trend Chart -->
+        <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-6">
+          <div class="mb-2 flex items-center justify-between">
+            <span id="bp-chart-title" class="text-xs font-bold text-navy-900">📈 第 1 週早晚收縮壓／舒張壓趨勢圖</span>
+            <div class="flex items-center gap-3 text-[10px] font-bold">
+              <span class="flex items-center gap-1 text-yam-600"><span class="h-2.5 w-2.5 rounded-full bg-yam-500"></span>早晨高壓</span>
+              <span class="flex items-center gap-1 text-sky-600"><span class="h-2.5 w-2.5 rounded-full bg-sky-500"></span>睡前高壓</span>
+              <span class="flex items-center gap-1 text-emerald-600"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>舒張壓</span>
+            </div>
+          </div>
+          <div class="relative h-56 w-full sm:h-60">
+            <canvas id="bpTrendChart"></canvas>
+          </div>
+          <p class="mt-2 text-[11px] text-slate-400 text-right">目標參考線：居家血壓理想值 &lt; 120 / 80 mmHg（切勿自行停藥）</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: 每日執行清單（A. 生活節律微習慣 ＋ B. 無調味飲食 ＋ C. 交叉運動） -->
+    <div class="dashboard-grid grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+      <!-- LEFT COLUMN (7 cols): DIET & HYDRATION -->
+      <div class="space-y-6 lg:col-span-7">
+
+        <!-- A. Morning Awakening & Daily Rhythm Habits -->
+        <section class="glass-card rounded-3xl p-5 shadow-sm sm:p-6">
+          <div class="mb-3.5 flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-base">☀️</span>
+              <div>
+                <h3 class="text-base font-black text-navy-900">A. 全日降壓生活節律微習慣</h3>
+                <p class="text-xs text-slate-500">預防清晨血壓驟升、久坐靜脈鬱積與促進夜間血管擴張</p>
+              </div>
+            </div>
+            <span id="habits-counter" class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">0 / 4</span>
+          </div>
+          <div class="space-y-2.5" id="habits-checklist-container">
+            <!-- Rendered by JS -->
+          </div>
+        </section>
+
+        <!-- B. Unseasoned Diet Plan (Dynamic by Week's Phase & Day) -->
+        <section class="glass-card rounded-3xl p-5 shadow-sm sm:p-6">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-yam-100 text-base">🥗</span>
+              <div>
+                <h3 class="text-base font-black text-navy-900">B. 無調味飲食控制（168 兩餐制）</h3>
+                <p class="text-xs text-slate-500">進食窗口 11:30–18:30・嚴格無鹽無醬無胡椒</p>
+              </div>
+            </div>
+            <button onclick="copyDeliveryNote()" class="inline-flex items-center gap-1 rounded-xl bg-sage-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-sage-800 active:scale-95">
+              <span>📋</span> 複製外送無調味備註
+            </button>
+          </div>
+
+          <!-- Eating Order Bar -->
+          <div class="mb-4 rounded-2xl border border-sage-200 bg-sage-50/80 p-3">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-sage-700">每餐固定進食順序（穩定餐後血糖不囤脂）</div>
+            <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-bold">
+              <span class="rounded-lg bg-emerald-600 px-2 py-0.5 text-white">1. 綠色蔬菜</span>
+              <span class="text-slate-400">➔</span>
+              <span class="rounded-lg bg-rose-600 px-2 py-0.5 text-white">2. 雞胸＋蛋＋豆漿</span>
+              <span class="text-slate-400">➔</span>
+              <span class="rounded-lg bg-yam-500 px-2 py-0.5 text-white">3. 原型地瓜</span>
+            </div>
+          </div>
+
+          <!-- Phase-Specific Coaching Note (Auto-selected by Week 1-26) -->
+          <div id="week-phase-diet-note" class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-relaxed text-emerald-950">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Meals Checklist -->
+          <div class="space-y-3" id="diet-checklist-container">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- 8 Glasses Hydration Tracker -->
+          <div class="mt-4 rounded-2xl border border-sky-200/80 bg-sky-50/40 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs font-black text-sky-950">💧 每日排鈉飲水打卡（目標 2,100～2,400 c.c.）</span>
+                <p class="text-[11px] text-slate-500">點擊水杯記錄進度，每杯 300 c.c.（滿 7 杯即計入每日達標）</p>
+              </div>
+              <div class="text-right">
+                <span id="water-cc-display" class="text-base font-black text-sky-700">0</span>
+                <span class="text-xs font-semibold text-slate-500">/ 2,400 c.c.</span>
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8" id="water-cups-grid">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN (5 cols): INDOOR BP WORKOUT & 180 BPM METRONOME -->
+      <div class="space-y-6 lg:col-span-5">
+        <section class="glass-card rounded-3xl p-5 shadow-sm sm:p-6">
+          <div class="mb-3.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-base">🏃</span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h3 class="text-base font-black text-navy-900">C. 居家降血壓交叉運動</h3>
+                  <span id="workout-type-badge" class="rounded-full bg-emerald-700 px-2.5 py-0.5 text-[10px] font-bold text-white">血管彈性日 A</span>
+                </div>
+                <p id="workout-subtitle" class="mt-0.5 text-xs text-slate-500">約 28 分鐘・全程順暢呼吸嚴禁憋氣</p>
+              </div>
+            </div>
+            <span id="workout-counter" class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">0 / 4</span>
+          </div>
+
+          <!-- High BP Override Warning inside Workout -->
+          <div id="workout-bp-warning" class="mb-4 hidden rounded-2xl border-2 border-rose-400 bg-rose-50 p-3.5 text-xs leading-relaxed text-rose-950">
+            <div class="font-black text-rose-800">🚨 血壓偏高安全防護啟動（&ge; 180/110 mmHg）</div>
+            <p class="mt-1">今日請<strong>跳過靠牆半蹲與原地超慢跑</strong>，改執行 <strong>5 分鐘腹式呼吸 ＋ 10 分鐘全身關節繞環</strong>並多休息。</p>
+          </div>
+
+          <!-- Built-in Countdown Timer + Wall Squat Set Tracker -->
+          <div class="mb-4 rounded-2xl border border-sage-200 bg-gradient-to-br from-sage-50 to-yam-50/60 p-4">
+            <div class="flex items-center justify-between">
+              <span class="rounded-md bg-sage-700 px-2 py-0.5 text-[10px] font-bold text-white">⏱️ 運動計時器</span>
+              <span id="squat-set-indicator" class="rounded-lg bg-yam-100 px-2.5 py-0.5 text-xs font-bold text-yam-900">半蹲組數：0 / 4 組</span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+              <span id="timer-display" class="font-mono text-3xl font-black tracking-wider text-navy-900">00:45</span>
+              <span id="timer-mode-label" class="text-[11px] font-bold text-slate-600">靠牆半蹲 (45秒)</span>
+            </div>
+            <div class="mt-2.5 flex flex-wrap gap-1.5">
+              <button onclick="setTimerPreset(45, '靠牆半蹲 (45秒)')" class="rounded-lg border border-sage-300 bg-white px-2 py-1 text-[11px] font-bold text-sage-800 hover:bg-sage-100">半蹲 45s</button>
+              <button onclick="setTimerPreset(60, '組間休息 (60秒)')" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100">休息 60s</button>
+              <button onclick="setTimerPreset(300, '腹式呼吸 (5分鐘)')" class="rounded-lg border border-sky-300 bg-white px-2 py-1 text-[11px] font-bold text-sky-800 hover:bg-sky-50">呼吸 5m</button>
+              <button onclick="setTimerPreset(900, '原地超慢跑 (15分鐘)')" class="rounded-lg border border-yam-300 bg-white px-2 py-1 text-[11px] font-bold text-yam-800 hover:bg-yam-50">慢跑 15m</button>
+            </div>
+            <div class="mt-2.5 flex items-center gap-2">
+              <button onclick="toggleTimer()" id="timer-start-btn" class="flex-1 rounded-xl bg-sage-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-sage-700">▶ 開始計時</button>
+              <button onclick="resetTimer()" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">歸零</button>
+              <button onclick="incrementSquatSet()" id="btn-add-squat" class="rounded-xl bg-yam-500 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-yam-600">+1 組半蹲</button>
+            </div>
+          </div>
+
+          <!-- Built-in Web Audio API 180 BPM Metronome -->
+          <div class="mb-4 rounded-2xl border border-navy-800/15 bg-navy-900 p-4 text-white shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="metronome-dot" class="inline-block h-3 w-3 rounded-full bg-yam-400"></span>
+                <span class="text-xs font-black tracking-wide">🎵 原地超慢跑節拍器（內建音效）</span>
+              </div>
+              <span class="rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-sage-200">免切 App</span>
+            </div>
+            <p class="mt-1 text-[11px] text-slate-300">維持極小步幅、前腳掌輕點著地，穩定心率在最佳降壓區間。</p>
+            <div class="mt-3 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1 rounded-xl bg-white/10 p-1">
+                <button onclick="setMetronomeBPM(160)" id="bpm-btn-160" class="rounded-lg px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white">160</button>
+                <button onclick="setMetronomeBPM(170)" id="bpm-btn-170" class="rounded-lg px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white">170</button>
+                <button onclick="setMetronomeBPM(180)" id="bpm-btn-180" class="rounded-lg bg-yam-500 px-2.5 py-1 text-[11px] font-black text-white shadow-sm">180 BPM</button>
+              </div>
+              <button onclick="toggleMetronome()" id="metronome-toggle-btn" class="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600">
+                🔊 啟動節拍
+              </button>
+            </div>
+          </div>
+
+          <!-- Workout Tasks List -->
+          <div class="space-y-2.5" id="workout-checklist-container">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- YouTube Follow-Along Videos for Current Day -->
+          <div class="mt-5 rounded-2xl border border-rose-200/80 bg-rose-50/40 p-4">
+            <div class="mb-2.5 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-rose-600 text-xs font-black text-white">▶</span>
+                <span class="text-xs font-black text-navy-900">本日跟練 YouTube 影片</span>
+              </div>
+              <span id="yt-day-tag" class="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">依當日課表推薦</span>
+            </div>
+
+            <!-- Active Embedded Video Player -->
+            <div id="yt-player-stage" class="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-navy-900 shadow-xs">
+              <div class="relative aspect-video w-full bg-black">
+                <iframe
+                  id="yt-active-iframe"
+                  src=""
+                  title="YouTube 跟練播放器"
+                  class="h-full w-full border-0"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                ></iframe>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 bg-white px-3 py-2">
+                <div class="min-w-0 flex-1">
+                  <div id="yt-active-title" class="truncate text-xs font-black text-navy-900">載入跟練影片中...</div>
+                  <div id="yt-active-meta" class="text-[10px] font-semibold text-slate-500">點擊下方影片可直接切換播放</div>
+                </div>
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <button type="button" onclick="toggleEmbedDomainFallback()" id="yt-embed-mode-btn" class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100" title="切換隱私強化網域與標準網域">
+                    🛡️ 強化嵌入
+                  </button>
+                  <a id="yt-active-ext-link" href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700 hover:bg-rose-100">
+                    前往 YT 觀看 ↗
+                  </a>
+                </div>
+              </div>
+              <div class="border-t border-slate-100 bg-amber-50/70 px-3 py-1.5 text-[10px] leading-snug text-amber-900">
+                💡 若遇 YouTube 限制站外嵌入（如「錯誤 153」），可點「<strong>🛡️ 強化嵌入</strong>」切換網域、選同日另一支影片，或直接按「<strong>前往 YT 觀看 ↗</strong>」開啟。
+              </div>
+            </div>
+
+            <!-- Video Selector Cards -->
+            <div class="space-y-2.5" id="youtube-follow-container">
+              <!-- Rendered by JS -->
+            </div>
+
+            <!-- Complete YouTube Video Logbook (影片網誌) -->
+            <div id="yt-video-logbook" class="mt-4 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+              <div class="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm">📓</span>
+                  <div>
+                    <h4 class="text-xs font-black text-navy-900">跟練影片網誌（每日播放與體感紀錄）</h4>
+                    <p class="text-[10px] text-slate-500">記錄當日跟練影片、實際跟練分鐘數與呼吸/血壓體感</p>
+                  </div>
+                </div>
+                <button type="button" onclick="logCurrentVideoToDiary()" class="rounded-lg bg-sage-700 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-sage-800">
+                  ＋ 帶入目前影片
+                </button>
+              </div>
+
+              <div class="space-y-2.5">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                  <div class="sm:col-span-8">
+                    <label class="block text-[10px] font-bold text-slate-500">跟練影片標題</label>
+                    <input type="text" id="yt-log-title" placeholder="例如：節拍超慢跑 180bpm／30分鐘節拍器" oninput="saveVideoLogData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs font-bold text-navy-900 outline-none focus:border-sage-500 focus:bg-white" />
+                  </div>
+                  <div class="sm:col-span-4">
+                    <label class="block text-[10px] font-bold text-slate-500">實際跟練（分鐘）</label>
+                    <input type="number" min="0" max="240" id="yt-log-mins" placeholder="15" oninput="saveVideoLogData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs font-bold text-navy-900 outline-none focus:border-sage-500 focus:bg-white" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                  <div class="sm:col-span-5">
+                    <label class="block text-[10px] font-bold text-slate-500">跟練體感評級</label>
+                    <select id="yt-log-feel" onchange="saveVideoLogData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs font-bold text-navy-900 outline-none focus:border-sage-500 focus:bg-white">
+                      <option value="">選擇當日體感...</option>
+                      <option value="🟢 輕鬆微笑可對話">🟢 輕鬆微笑可對話</option>
+                      <option value="🟡 微喘但節奏平穩">🟡 微喘但節奏平穩</option>
+                      <option value="🟠 下肢微酸需降速">🟠 下肢微酸需降速</option>
+                      <option value="🔴 偏累提早休息">🔴 偏累提早休息</option>
+                    </select>
+                  </div>
+                  <div class="sm:col-span-7">
+                    <label class="block text-[10px] font-bold text-slate-500">網誌心得筆記</label>
+                    <input type="text" id="yt-log-note" placeholder="記錄步頻順暢度、靠牆蹲秒數或身體回饋..." oninput="saveVideoLogData()" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs text-navy-900 outline-none focus:border-sage-500 focus:bg-white" />
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-1">
+                  <span id="yt-log-status" class="text-[10px] font-semibold text-slate-400">自動儲存於本週本機紀錄</span>
+                  <button type="button" onclick="saveVideoLogData(true)" class="rounded-xl bg-navy-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-navy-800">
+                    💾 儲存影片網誌
+                  </button>
+                </div>
+              </div>
+
+              <!-- Recent Week Video Logbook History -->
+              <div class="mt-3 border-t border-slate-100 pt-2.5">
+                <div class="mb-1.5 text-[10px] font-bold text-slate-500">📅 本週影片網誌總覽</div>
+                <div id="yt-log-history" class="space-y-1.5">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Medical Safety Footer -->
+    <footer class="rounded-2xl border border-slate-200 bg-white p-4 text-center text-xs leading-relaxed text-slate-500">
+      <p>🩺 <strong>醫療安全提醒：</strong>每 4 週（第 4、8、12、16、20、24、26 週）建議匯出本系統的「722 血壓與體重摘要」回診<strong>心臟內科</strong>，由醫師評估是否調整降血壓藥物，<strong class="text-rose-700">切勿自行停藥</strong>。</p>
+    </footer>
+
+  </main>
+
+  <script>
+    // ==========================================
+    // 1. MASTER CONFIGURATION & DATA
+    // ==========================================
+    const TOTAL_WEEKS = 26;
+    const MILESTONE_WEEKS = [4, 8, 12, 16, 20, 24, 26];
+
+    const DAYS_INFO = [
+      { id: 1, key: 'mon', short: '週一', name: '星期一' },
+      { id: 2, key: 'tue', short: '週二', name: '星期二' },
+      { id: 3, key: 'wed', short: '週三', name: '星期三' },
+      { id: 4, key: 'thu', short: '週四', name: '星期四' },
+      { id: 5, key: 'fri', short: '週五', name: '星期五' },
+      { id: 6, key: 'sat', short: '週六', name: '星期六' },
+      { id: 0, key: 'sun', short: '週日', name: '星期日' }
+    ];
+
+    // Null-safe text helper
+    function setTextById(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    // Map Week Number (1..26) to Phase (1, 2, or 3)
+    function getPhaseForWeek(weekNum) {
+      if (weekNum <= 8) {
+        return {
+          phase: 1,
+          shortBadge: '第一階段',
+          badge: '🟢 第一階段（第 1～8 週）',
+          title: '排鈉適應與基本輪替期',
+          pillClass: 'bg-emerald-500/30 border-emerald-300/40 text-emerald-100',
+          noteClass: 'border-emerald-200 bg-emerald-50/80 text-emerald-950',
+          noteHtml: '🟢 <strong>第一階段重點（第 1～8 週）：</strong>戒除重鹹口味、穩定血壓波動。地瓜採<strong>黃肉（台農57號）↔ 紅肉（台農66號）</strong>交替；豆漿採<strong>無糖高纖 ↔ 無糖黑豆漿</strong>輪替。'
+        };
+      } else if (weekNum <= 17) {
+        return {
+          phase: 2,
+          shortBadge: '第二階段',
+          badge: '🔵 第二階段（第 9～17 週）',
+          title: '高鉀深綠蔬菜升級與口感重塑期',
+          pillClass: 'bg-sky-500/30 border-sky-300/40 text-sky-100',
+          noteClass: 'border-sky-200 bg-sky-50/80 text-sky-950',
+          noteHtml: '🔵 <strong>第二階段升級（第 9～17 週）：</strong>地瓜加入<strong>紫心地瓜</strong>三色輪替；蔬菜優先選<strong>高鉀排鈉組</strong>（菠菜、地瓜葉、空心菜）與<strong>護肝十字花科</strong>（綠花椰、青江菜）；雞胸可採<strong>雞絲冷拌＋碎堅果</strong>或<strong>不加油乾煎</strong>變化口感。'
+        };
+      } else {
+        return {
+          phase: 3,
+          shortBadge: '第三階段',
+          badge: '🟣 第三階段（第 18～26 週）',
+          title: '代謝突破與生活型態定型期',
+          pillClass: 'bg-purple-500/30 border-purple-300/40 text-purple-100',
+          noteClass: 'border-purple-200 bg-purple-50/80 text-purple-950',
+          noteHtml: '🟣 <strong>第三階段定型（第 18～26 週）：</strong>導入「高低碳微調波動法」打破停滯期——週一至五標準燃脂；<strong>週六高纖排毒日</strong>（地瓜減半共 1 條、蔬菜增至 5～6 拳頭）；<strong>週日代謝充電日</strong>（第一餐 1.5 條地瓜、全日共 2.5 條）。'
+        };
+      }
+    }
+
+    // Daily Blood Pressure Lifestyle Micro-Habits
+    const DAILY_HABITS = [
+      { id: 'h_wake', title: '清晨「賴床 1 分鐘」安全喚醒', desc: '醒來先在床上動動手腳、伸展四肢 1 分鐘再緩慢坐起，預防清晨血壓驟升' },
+      { id: 'h_bp_am', title: '早晨 722 血壓量測（起床 1 小時內、服藥前）', desc: '排尿後靜坐 5 分鐘量測 2 次取平均，並於上方填寫紀錄' },
+      { id: 'h_sedentary', title: '防久坐中斷微動（每坐 50 分鐘起身 3 分鐘）', desc: '白天工作或看電視時，定時起身墊腳尖 30 下或伸展，啟動下肢肌泵回流' },
+      { id: 'h_footbath', title: '睡前 1.5 小時溫水泡腳 15 分鐘 ＋ 睡前 722 量測', desc: '38～40°C 溫水泡腳（勿超過 42°C）促末梢血管擴張，睡前 1 小時內再量血壓' }
+    ];
+
+    // Daily Diet Plan (Dynamically adjusted for Phase 3 Sat/Sun)
+    function getDietForDay(weekNum, dayId) {
+      const phaseInfo = getPhaseForWeek(weekNum);
+      const isPhase3Sat = phaseInfo.phase === 3 && dayId === 6;
+      const isPhase3Sun = phaseInfo.phase === 3 && dayId === 0;
+
+      const basePlans = {
+        1: {
+          label: '經典超商＋無調味健康餐盒',
+          m1Title: '11:30 第一餐｜超商經典原味組合',
+          m1: [
+            { id: 'd_m1_v', title: '1. 盒裝生菜沙拉（完全不加醬）', desc: '先吃 1.5～2 拳頭綠色蔬菜鋪底，阻隔糖分快速吸收' },
+            { id: 'd_m1_p', title: '2. 無調味舒肥雞胸 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖高纖豆漿 400ml', desc: '補充動植物優質蛋白，提升飽足感' },
+            { id: 'd_m1_c', title: '3. 黃肉蒸地瓜 1 條（約 110～150g）', desc: '最後細嚼慢嚥攝取抗性澱粉' }
+          ],
+          m2Title: '18:30 第二餐｜外送：無調味健康餐盒',
+          m2: [
+            { id: 'd_m2_v', title: '1. 雙份水煮綠色蔬菜（不要飯換雙份菜）', desc: '備註完全水煮不加鹽與胡椒，補足高鉀排鈉蔬菜' },
+            { id: 'd_m2_p', title: '2. 原味水煮雞胸 1 份 ＋ 無糖豆漿 400ml ＋ 無調味堅果 1 湯匙', desc: '堅果約 5～6 顆提供好油脂' },
+            { id: 'd_m2_c', title: '3. 超商烤紅肉地瓜 1 條', desc: '睡前 4 小時完食，維持平穩夜間代謝' }
+          ]
+        },
+        2: {
+          label: '豆漿溫沙拉＋個人昆布小火鍋',
+          m1Title: '11:30 第一餐｜超商／門市溫沙拉拌吃法',
+          m1: [
+            { id: 'd_m1_v', title: '1. 盒裝生菜沙拉（淋 2 湯匙無糖黑豆漿當天然沙拉醬）', desc: '其餘無糖黑豆漿直接飲用，花青素抗氧化護血管' },
+            { id: 'd_m1_p', title: '2. 無調味雞胸肉撕絲 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖黑豆漿 400ml', desc: '雞胸順紋撕絲拌入生菜更順口' },
+            { id: 'd_m1_c', title: '3. 紅肉烤地瓜 1 條（切塊拌入）', desc: '天然甜味提升無調味生菜層次感' }
+          ],
+          m2Title: '18:30 第二餐｜外送／連鎖：個人昆布小火鍋',
+          m2: [
+            { id: 'd_m2_v', title: '1. 雙份綠色葉菜（青江菜／大陸妹／高麗菜）', desc: '昆布清湯底只涮料、絕對不喝湯，避免攝取溶出鈉離子' },
+            { id: 'd_m2_p', title: '2. 原味雞肉片 1 份 ＋ 無糖黑豆漿 400ml ＋ 無調味核桃 3 顆', desc: '清湯現涮 30 秒起鍋最滑嫩' },
+            { id: 'd_m2_c', title: '3. 烤地瓜 1 條', desc: '替代火鍋冬粉與白飯，零精緻澱粉' }
+          ]
+        },
+        3: {
+          label: '超市微波備餐＋外送輕食沙拉碗',
+          m1Title: '11:30 第一餐｜超市採買微波備餐',
+          m1: [
+            { id: 'd_m1_v', title: '1. 燙青花菜 1 大碗（可滴幾滴無調味橄欖油）', desc: '十字花科富含蘿蔔硫素，輔助肝臟代謝脂肪' },
+            { id: 'd_m1_p', title: '2. 超市無調味冷凍雞胸微波 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖豆漿 400ml', desc: '省時便利且鈉含量極低' },
+            { id: 'd_m1_c', title: '3. 蒸地瓜 1 條', desc: '保持原型食物原味' }
+          ],
+          m2Title: '18:30 第二餐｜外送：輕食沙拉碗客製',
+          m2: [
+            { id: 'd_m2_v', title: '1. 自選基底（綜合綠葉菜＋花椰菜，完全不加醬）', desc: '高鉀深綠蔬菜強化血管舒張' },
+            { id: 'd_m2_p', title: '2. 原味水煮雞胸肉 1 份 ＋ 無糖高纖豆漿 400ml ＋ 無調味杏仁 6 顆', desc: '脆口杏仁增加咀嚼滿足感' },
+            { id: 'd_m2_c', title: '3. 原型地瓜塊 1 份（約 1 條量）', desc: '穩定供應晚餐碳水能量' }
+          ]
+        },
+        4: {
+          label: '經典超商＋無調味健康餐盒',
+          m1Title: '11:30 第一餐｜超商經典原味組合',
+          m1: [
+            { id: 'd_m1_v', title: '1. 盒裝生菜沙拉（完全不加醬）', desc: '先吃 1.5～2 拳頭綠色蔬菜鋪底' },
+            { id: 'd_m1_p', title: '2. 無調味舒肥雞胸 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖高纖豆漿 400ml', desc: '補充優質蛋白質與膳食纖維' },
+            { id: 'd_m1_c', title: '3. 黃肉蒸地瓜 1 條', desc: '最後攝取優質抗性澱粉' }
+          ],
+          m2Title: '18:30 第二餐｜外送：無調味健康餐盒',
+          m2: [
+            { id: 'd_m2_v', title: '1. 雙份水煮綠色蔬菜（不要飯換雙份菜）', desc: '完全水煮不加鹽、不撒胡椒粉' },
+            { id: 'd_m2_p', title: '2. 原味水煮雞胸 1 份 ＋ 無糖豆漿 400ml ＋ 無調味堅果 1 湯匙', desc: '補足一日好油脂與蛋白質' },
+            { id: 'd_m2_c', title: '3. 超商烤紅肉地瓜 1 條', desc: '18:30 前完成晚餐進入夜間輕斷食' }
+          ]
+        },
+        5: {
+          label: '豆漿溫沙拉＋個人昆布小火鍋',
+          m1Title: '11:30 第一餐｜超商／門市溫沙拉拌吃法',
+          m1: [
+            { id: 'd_m1_v', title: '1. 盒裝生菜沙拉（淋 2 湯匙無糖黑豆漿拌食）', desc: '天然豆香替代高鈉沙拉醬' },
+            { id: 'd_m1_p', title: '2. 無調味雞胸肉撕絲 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖黑豆漿 400ml', desc: '補足半日所需蛋白質' },
+            { id: 'd_m1_c', title: '3. 紅肉烤地瓜 1 條', desc: '最後細嚼慢嚥享用' }
+          ],
+          m2Title: '18:30 第二餐｜外送／連鎖：個人昆布小火鍋',
+          m2: [
+            { id: 'd_m2_v', title: '1. 雙份綠色葉菜（只涮料不喝湯）', desc: '清湯川燙保留蔬菜高鉀特性' },
+            { id: 'd_m2_p', title: '2. 原味雞肉片 1 份 ＋ 無糖黑豆漿 400ml ＋ 無調味核桃 3 顆', desc: '零加工火鍋料，純粹原型肉片' },
+            { id: 'd_m2_c', title: '3. 烤地瓜 1 條', desc: '穩定餐後胰島素波動' }
+          ]
+        },
+        6: {
+          label: isPhase3Sat ? '【高纖排毒日】蔬菜增量＋地瓜減半' : '超市微波備餐＋外送輕食沙拉碗',
+          m1Title: '11:30 第一餐｜超市採買微波備餐',
+          m1: [
+            { id: 'd_m1_v', title: isPhase3Sat ? '1. 燙青花菜＋深綠蔬菜 3 拳頭（高纖排毒增量）' : '1. 燙青花菜 1 大碗（滴幾滴無調味橄欖油）', desc: '周末早晨高鉀護肝蔬菜補給' },
+            { id: 'd_m1_p', title: '2. 無調味雞胸微波 1 份 ＋ 水煮蛋 1 顆 ＋ 無糖豆漿 400ml', desc: '維持規律蛋白質攝取' },
+            { id: 'd_m1_c', title: isPhase3Sat ? '3. 蒸地瓜【半條】（高纖排毒日減半）' : '3. 蒸地瓜 1 條', desc: isPhase3Sat ? '今日兩餐各半條，全日共 1 條地瓜' : '保持原型食物原味' }
+          ],
+          m2Title: '18:30 第二餐｜外送：輕食沙拉碗客製',
+          m2: [
+            { id: 'd_m2_v', title: isPhase3Sat ? '1. 雙倍綠葉菜＋花椰菜 3 拳頭（全日達 6 拳頭）' : '1. 自選基底（綜合綠葉菜＋花椰菜，不加醬）', desc: '大量深綠蔬菜助腸道大掃除與排鈉' },
+            { id: 'd_m2_p', title: '2. 原味水煮雞胸肉 1 份 ＋ 無糖高纖豆漿 400ml ＋ 無調味杏仁 6 顆', desc: '優質脂肪與蛋白組合' },
+            { id: 'd_m2_c', title: isPhase3Sat ? '3. 原型地瓜塊【半條】（全日共 1 條）' : '3. 原型地瓜塊 1 份（約 1 條量）', desc: '睡前 4 小時輕盈完食' }
+          ]
+        },
+        0: {
+          label: isPhase3Sun ? '【代謝充電日】地瓜濃湯 1.5 條＋門市現點' : '地瓜豆漿濃湯變化日＋門市現點',
+          m1Title: '11:30 第一餐｜創意無調味：地瓜豆漿濃湯日',
+          m1: [
+            { id: 'd_m1_v', title: '1. 盒裝生菜沙拉（不加醬）', desc: '先吃生菜啟動消化酵素與纖維屏障' },
+            { id: 'd_m1_p', title: '2. 無調味雞胸肉 1 份 ＋ 水煮蛋 1 顆', desc: '紮實蛋白質補給' },
+            { id: 'd_m1_c', title: isPhase3Sun ? '3. 熱蒸地瓜【1.5 條】壓泥拌入熱無糖豆漿 400ml' : '3. 熱蒸地瓜 1 條壓泥拌入熱無糖豆漿 400ml', desc: isPhase3Sun ? '代謝充電日微增碳水，防止基礎代謝率下降' : '週日質感變化吃法，溫潤香甜零添加' }
+          ],
+          m2Title: '18:30 第二餐｜連鎖健康餐盒門市現場自取',
+          m2: [
+            { id: 'd_m2_v', title: '1. 現場口頭點餐「不要飯、換雙份水煮青菜」', desc: '確保完全無鹽無油淋醬' },
+            { id: 'd_m2_p', title: '2. 原味雞胸肉（不撒椒鹽）＋ 無糖黑豆漿 400ml ＋ 無調味腰果 5 顆', desc: '腰果微甜口感為一週畫下完美句點' },
+            { id: 'd_m2_c', title: '3. 蒸地瓜 1 條', desc: '維持每日固定原型碳水配給' }
+          ]
+        }
+      };
+
+      return basePlans[dayId];
+    }
+
+    // Daily Indoor Blood Pressure Workout Plan (Mon - Sun)
+    const WORKOUT_PLAN = {
+      1: {
+        theme: '血管彈性日 A',
+        duration: '約 28 分鐘',
+        benefit: '先超慢跑深度暖身，再做靠牆半蹲刺激一氧化氮擴張血管',
+        hasSquat: true,
+        items: [
+          { id: 'w_1', title: '暖身（3 分鐘）：原地輕踏步、轉動手腕腳踝與膝蓋', desc: '喚醒關節滑液，避免血壓突然上升' },
+          { id: 'w_2', title: '原地超慢跑（15 分鐘｜建議開啟下方 180 BPM 節拍器）', desc: '前腳掌先輕點著地、膝蓋微彎不鎖死，維持「微微笑、能順暢說話」節奏' },
+          { id: 'w_3', title: '靠牆半蹲 4 組（每組 30～60 秒，組間休 1 分鐘）', desc: '⚠️ 赤腳踩瑜珈墊防滑！大腿微酸即可，全程順暢呼吸嚴禁憋氣' },
+          { id: 'w_4', title: '緩和伸展（2 分鐘）：靠牆小腿伸展與大腿前側放鬆', desc: '慢慢走動平緩心率，避免突然停止造成頭暈' }
+        ]
+      },
+      2: {
+        theme: '心肺耐力日',
+        duration: '約 30 分鐘',
+        benefit: '穩定中長時有氧提升循環代謝、消耗肝臟多餘脂肪',
+        hasSquat: false,
+        items: [
+          { id: 'w_1', title: '暖身（3 分鐘）：原地踏步與肩頸關節繞環', desc: '循序漸進提升體溫與心率' },
+          { id: 'w_2', title: '原地超慢跑（25 分鐘｜可拆成早晚 15 分＋10 分）', desc: '搭配 180 BPM 小步幅高步頻，邊看電視輕鬆完成' },
+          { id: 'w_3', title: '緩和伸展（2 分鐘）：靠牆小腿伸展與深呼吸放鬆', desc: '舒緩小腿肌群緊繃，穩定自律神經' }
+        ]
+      },
+      3: {
+        theme: '血管彈性日 B',
+        duration: '約 28 分鐘',
+        benefit: '強化下肢肌泵靜脈回流，減輕心臟打血阻力',
+        hasSquat: true,
+        items: [
+          { id: 'w_1', title: '暖身（3 分鐘）：原地輕踏步、轉動腳踝與膝蓋', desc: '做好下肢關節預熱' },
+          { id: 'w_2', title: '坐姿抬腿 / 原地輕快踏步（15 分鐘）', desc: '溫和啟動下肢肌群循環，不喘到說不出話' },
+          { id: 'w_3', title: '靠牆半蹲 4 組（每組 30～60 秒，組間休 1 分鐘）', desc: '⚠️ 赤腳踩瑜珈墊防滑！背部平貼牆面，膝蓋與腳尖同方向，嚴禁憋氣' },
+          { id: 'w_4', title: '緩和伸展（2 分鐘）：大腿前後側伸展與慢走', desc: '協助下肢乳酸代謝與血壓平穩' }
+        ]
+      },
+      4: {
+        theme: '自律神經調節日',
+        duration: '約 25 分鐘',
+        benefit: '降低交感神經興奮與壓力荷爾蒙，改善血管緊繃',
+        hasSquat: false,
+        items: [
+          { id: 'w_1', title: '腹式呼吸訓練（5 分鐘）：鼻吸 4 秒、嘴吐 6 秒', desc: '坐姿或躺姿讓腹部隨吸氣隆起，直接啟動副交感神經平緩血壓' },
+          { id: 'w_2', title: '居家緩和瑜伽 / 八段錦（20 分鐘）', desc: '著重「雙手托天理三焦」、擴胸與溫和轉腰動作，舒展肩頸循環' }
+        ]
+      },
+      5: {
+        theme: '血管彈性日 C',
+        duration: '約 28 分鐘',
+        benefit: '鞏固週末前的血管舒張效應，維持整週穩壓節奏',
+        hasSquat: true,
+        items: [
+          { id: 'w_1', title: '暖身（3 分鐘）：原地輕踏步與下肢關節活動', desc: '預熱雙腿肌群' },
+          { id: 'w_2', title: '原地超慢跑（15 分鐘｜180 BPM）', desc: '前腳掌先著地、腳跟輕落，保持輕鬆微笑節奏' },
+          { id: 'w_3', title: '靠牆半蹲 4 組（每組 30～60 秒，組間休 1 分鐘）', desc: '⚠️ 赤腳踩瑜珈墊防滑！隨肌力進步可逐步拉長秒數，嚴禁憋氣' },
+          { id: 'w_4', title: '緩和伸展（2 分鐘）：靠牆小腿伸展與深呼吸', desc: '平穩結束平日最後一次等長訓練' }
+        ]
+      },
+      6: {
+        theme: '分段有氧日',
+        duration: '累計 30 分鐘',
+        benefit: '避免週末久坐造成血壓波動，早晚分段輕鬆累積',
+        hasSquat: false,
+        items: [
+          { id: 'w_1', title: '早／午時段：原地超慢跑 15 分鐘（含 2 分鐘暖身）', desc: '飯後 1 小時進行，幫助平穩餐後血糖與血壓' },
+          { id: 'w_2', title: '晚間時段：原地超慢跑 15 分鐘（睡前 2 小時完成）', desc: '可邊看電視邊輕鬆慢跑，結束後伸展小腿 2 分鐘' }
+        ]
+      },
+      0: {
+        theme: '動態恢復日',
+        duration: '約 15 分鐘',
+        benefit: '讓下肢肌群完全修復，維持「每天動一動」習慣',
+        hasSquat: false,
+        items: [
+          { id: 'w_1', title: '全身關節繞環（5 分鐘）', desc: '從頸部、肩膀、手腕、腰部到膝蓋與腳踝溫和畫圓活動' },
+          { id: 'w_2', title: '靠牆伸展與室內輕鬆散步（10 分鐘）', desc: '徹底放鬆緊繃筋膜，為新的一週儲備能量' }
+        ]
+      }
+    };
+
+    // ==========================================
+    // 2. STATE & VIEW MODE MANAGEMENT
+    // ==========================================
+    const STORAGE_KEY = 'health_26week_master_v1';
+    const MODE_STORAGE_KEY = 'health_26week_mode_pref_v1';
+    const realTodayId = new Date().getDay(); // 0=Sun..6=Sat
+
+    let selectedWeek = 1;
+    let selectedDayId = realTodayId;
+    let bpChartInstance = null;
+    let modePref = 'auto'; // 'auto' | 'desktop' | 'mobile'
+
+    function detectEffectiveMode() {
+      if (modePref === 'desktop' || modePref === 'mobile') {
+        return modePref;
+      }
+      return window.innerWidth < 768 ? 'mobile' : 'desktop';
+    }
+
+    function applyModeLayout() {
+      const effectiveMode = detectEffectiveMode();
+      document.body.dataset.viewMode = modePref;
+      document.body.dataset.effectiveMode = effectiveMode;
+
+      const modeIcon = document.getElementById('mode-icon');
+      const modeLabel = document.getElementById('mode-label');
+      if (modeIcon) {
+        modeIcon.textContent = effectiveMode === 'mobile' ? '📱' : '🖥️';
+      }
+      if (modeLabel) {
+        const prefix = modePref === 'auto' ? '自動：' : '手動：';
+        modeLabel.textContent = `${prefix}${effectiveMode === 'mobile' ? '手機' : '桌機'}`;
+      }
+
+      ['auto', 'desktop', 'mobile'].forEach(pref => {
+        const btn = document.getElementById(`mbtn-${pref}`);
+        if (!btn) return;
+        if (modePref === pref) {
+          btn.className = 'min-h-[34px] rounded-xl bg-navy-900 px-2.5 text-[11px] font-black text-white shadow-2xs transition';
+        } else {
+          btn.className = 'min-h-[34px] rounded-xl px-2.5 text-[11px] font-black text-slate-600 hover:bg-white transition';
+        }
+      });
+
+      if (bpChartInstance) {
+        bpChartInstance.resize();
+      }
+    }
+
+    function setModePref(pref) {
+      if (!['auto', 'desktop', 'mobile'].includes(pref)) return;
+      modePref = pref;
+      try {
+        localStorage.setItem(MODE_STORAGE_KEY, modePref);
+      } catch (e) {
+        console.warn('Mode storage save error:', e);
+      }
+      applyModeLayout();
+      const labelMap = { auto: '自動偵測裝置', desktop: '桌機版面', mobile: '手機版面' };
+      showToast(`已切換至「${labelMap[pref]}」`);
+    }
+
+    function loadModePref() {
+      try {
+        const saved = localStorage.getItem(MODE_STORAGE_KEY);
+        if (saved && ['auto', 'desktop', 'mobile'].includes(saved)) {
+          modePref = saved;
+        }
+      } catch (e) {
+        console.warn('Mode storage load error:', e);
+      }
+    }
+
+    function createEmptyDayRecord() {
+      return {
+        checks: {},
+        waterCups: 0,
+        squatSets: 0,
+        amSbp: '',
+        amDbp: '',
+        amHr: '',
+        pmSbp: '',
+        pmDbp: '',
+        pmHr: '',
+        weight: '',
+        videoLog: {
+          title: '',
+          mins: '',
+          feel: '',
+          note: ''
+        }
+      };
+    }
+
+    function createEmptyWeekRecord() {
+      const w = {};
+      DAYS_INFO.forEach(d => {
+        w[d.key] = createEmptyDayRecord();
+      });
+      return w;
+    }
+
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return {
+            currentWeek: parsed.currentWeek || 1,
+            weeks: parsed.weeks || {}
+          };
+        }
+      } catch (e) {
+        console.warn('Storage load error:', e);
+      }
+      return { currentWeek: 1, weeks: {} };
+    }
+
+    let appState = loadAppState();
+    selectedWeek = appState.currentWeek || 1;
+
+    function getWeekData(weekNum) {
+      const wKey = `week_${weekNum}`;
+      if (!appState.weeks[wKey]) {
+        appState.weeks[wKey] = createEmptyWeekRecord();
+      }
+      return appState.weeks[wKey];
+    }
+
+    function getDayData(weekNum, dayId) {
+      const dayObj = DAYS_INFO.find(d => d.id === dayId);
+      const wData = getWeekData(weekNum);
+      if (!wData[dayObj.key]) {
+        wData[dayObj.key] = createEmptyDayRecord();
+      }
+      return wData[dayObj.key];
+    }
+
+    function saveAppState() {
+      appState.currentWeek = selectedWeek;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.warn('Storage save error:', e);
+      }
+    }
+
+    // ==========================================
+    // 3. COMPLETION CALCULATIONS
+    // ==========================================
+    function getDayStats(weekNum, dayId) {
+      const dData = getDayData(weekNum, dayId);
+      const diet = getDietForDay(weekNum, dayId);
+      const workout = WORKOUT_PLAN[dayId];
+
+      const habitIds = DAILY_HABITS.map(h => h.id);
+      const dietIds = [...diet.m1, ...diet.m2].map(d => d.id);
+      const workoutIds = workout.items.map(w => w.id);
+
+      let completed = 0;
+      const total = habitIds.length + dietIds.length + workoutIds.length + 1;
+
+      habitIds.forEach(id => { if (dData.checks[id]) completed++; });
+      dietIds.forEach(id => { if (dData.checks[id]) completed++; });
+      workoutIds.forEach(id => { if (dData.checks[id]) completed++; });
+      if ((dData.waterCups || 0) >= 7) completed++;
+
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { completed, total, percent };
+    }
+
+    function getWeekSummaryStats(weekNum) {
+      let fullDays = 0;
+      let totalPct = 0;
+      DAYS_INFO.forEach(d => {
+        const s = getDayStats(weekNum, d.id);
+        if (s.percent === 100) fullDays++;
+        totalPct += s.percent;
+      });
+      return {
+        fullDays,
+        avgPercent: Math.round(totalPct / 7)
+      };
+    }
+
+    // ==========================================
+    // 4. RENDERING FUNCTIONS
+    // ==========================================
+    function renderAll() {
+      applyModeLayout();
+      renderWeekHeader();
+      renderWeekdayTabs();
+      renderHeroCard();
+      renderBPSection();
+      renderHabitsSection();
+      renderDietSection();
+      renderWorkoutSection();
+      renderYouTubeSection();
+      renderVideoLogbookSection();
+    }
+
+    function renderWeekHeader() {
+      const phaseInfo = getPhaseForWeek(selectedWeek);
+      setTextById('header-phase-subtitle', `${phaseInfo.badge}｜${phaseInfo.title}`);
+      setTextById('hero-phase-badge', phaseInfo.shortBadge);
+
+      const milestoneBadge = document.getElementById('header-milestone-badge');
+      if (milestoneBadge) {
+        milestoneBadge.classList.toggle('hidden', !MILESTONE_WEEKS.includes(selectedWeek));
+      }
+
+      const dropdown = document.getElementById('week-dropdown');
+      if (dropdown) {
+        let opts = '';
+        for (let w = 1; w <= TOTAL_WEEKS; w++) {
+          const isMile = MILESTONE_WEEKS.includes(w) ? ' 🩺' : '';
+          opts += `<option value="${w}" ${w === selectedWeek ? 'selected' : ''}>第 ${w} 週${isMile}</option>`;
+        }
+        dropdown.innerHTML = opts;
+      }
+
+      const prevBtn = document.getElementById('btn-prev-week');
+      const nextBtn = document.getElementById('btn-next-week');
+      if (prevBtn) prevBtn.disabled = selectedWeek <= 1;
+      if (nextBtn) nextBtn.disabled = selectedWeek >= TOTAL_WEEKS;
+    }
+
+    function renderWeekdayTabs() {
+      const container = document.getElementById('weekday-tabs');
+      if (!container) return;
+      container.innerHTML = DAYS_INFO.map(day => {
+        const isSelected = day.id === selectedDayId;
+        const isToday = day.id === realTodayId;
+        const stats = getDayStats(selectedWeek, day.id);
+        const isFull = stats.percent === 100;
+
+        let cls = 'flex flex-1 min-w-[64px] flex-col items-center justify-center rounded-2xl border px-2 py-1.5 transition-all cursor-pointer ';
+        if (isSelected) {
+          cls += 'border-sage-700 bg-sage-700 text-white shadow-md scale-[1.02]';
+        } else {
+          cls += 'border-slate-200 bg-slate-50/80 text-slate-600 hover:border-sage-300 hover:bg-white';
+        }
+
+        return `
+          <button onclick="selectDay(${day.id})" class="${cls}">
+            <div class="flex items-center gap-1">
+              <span class="text-xs font-black sm:text-sm">${day.short}</span>
+              ${isFull ? '<span class="text-[10px]">🌟</span>' : ''}
+            </div>
+            <span class="mt-0.5 text-[10px] font-semibold ${isSelected ? 'text-yam-200' : (isToday ? 'text-sage-700 font-bold' : 'text-slate-400')}">
+              ${isToday ? '今天' : `${stats.percent}%`}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderHeroCard() {
+      const dayObj = DAYS_INFO.find(d => d.id === selectedDayId);
+      const phaseInfo = getPhaseForWeek(selectedWeek);
+      const diet = getDietForDay(selectedWeek, selectedDayId);
+      const workout = WORKOUT_PLAN[selectedDayId];
+      const stats = getDayStats(selectedWeek, selectedDayId);
+
+      setTextById('hero-week-day-badge', `第 ${selectedWeek} 週 · ${dayObj.name}`);
+      const todayTag = document.getElementById('today-indicator');
+      if (todayTag) {
+        todayTag.classList.toggle('hidden', selectedDayId !== realTodayId);
+      }
+
+      const phaseBadge = document.getElementById('phase-pill-badge');
+      if (phaseBadge) {
+        phaseBadge.textContent = phaseInfo.title;
+        phaseBadge.className = `rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${phaseInfo.pillClass}`;
+      }
+
+      setTextById('day-theme-title', `${workout.theme} ＋ ${diet.label}`);
+      setTextById('progress-summary-text', `已完成 ${stats.completed} / ${stats.total} 項每日核心任務（含早晚習慣、無調味兩餐、運動與飲水）`);
+      setTextById('progress-percent', `${stats.percent}%`);
+
+      const circumference = 263.89;
+      const offset = circumference - (stats.percent / 100) * circumference;
+      const circle = document.getElementById('progress-ring-circle');
+      if (circle) {
+        circle.style.strokeDashoffset = offset;
+        circle.style.stroke = stats.percent === 100 ? '#34d399' : '#f69f40';
+      }
+
+      setTextById('weekly-matrix-label', `第 ${selectedWeek} 週七日達標矩陣`);
+      let fullDays = 0;
+      const matrixHtml = DAYS_INFO.map(d => {
+        const s = getDayStats(selectedWeek, d.id);
+        if (s.percent === 100) fullDays++;
+        const isCur = d.id === selectedDayId;
+        let pillCls = 'bg-white/10 text-sage-200 border-white/10';
+        if (s.percent === 100) {
+          pillCls = 'bg-emerald-500 text-white border-emerald-400 font-black';
+        } else if (s.percent > 0) {
+          pillCls = 'bg-yam-500/85 text-white border-yam-400';
+        }
+        return `
+          <button onclick="selectDay(${d.id})" class="flex flex-col items-center rounded-xl border py-1.5 text-[10px] transition ${pillCls} ${isCur ? 'ring-2 ring-white' : ''}">
+            <span>${d.short.replace('週', '')}</span>
+            <span class="mt-0.5 text-[9px] opacity-95">${s.percent === 100 ? '✓' : s.percent + '%'}</span>
+          </button>
+        `;
+      }).join('');
+
+      const miniEl = document.getElementById('weekly-mini-overview');
+      if (miniEl) miniEl.innerHTML = matrixHtml;
+      setTextById('weekly-streak-text', `${fullDays} / 7 日滿分`);
+    }
+
+    function renderBPSection() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+      };
+      setVal('bp-am-sbp', dData.amSbp);
+      setVal('bp-am-dbp', dData.amDbp);
+      setVal('bp-am-hr', dData.amHr);
+      setVal('bp-pm-sbp', dData.pmSbp);
+      setVal('bp-pm-dbp', dData.pmDbp);
+      setVal('bp-pm-hr', dData.pmHr);
+      setVal('input-weight', dData.weight);
+
+      evaluateBPSafetyAndWeeklyAvg();
+      renderBPChart();
+    }
+
+    function evaluateBPSafetyAndWeeklyAvg() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      const amS = parseInt(dData.amSbp, 10);
+      const amD = parseInt(dData.amDbp, 10);
+      const pmS = parseInt(dData.pmSbp, 10);
+      const pmD = parseInt(dData.pmDbp, 10);
+
+      const safetyBanner = document.getElementById('bp-safety-banner');
+      const workoutWarn = document.getElementById('workout-bp-warning');
+
+      const isDangerHigh =
+        (!isNaN(amS) && amS >= 180) || (!isNaN(amD) && amD >= 110) ||
+        (!isNaN(pmS) && pmS >= 180) || (!isNaN(pmD) && pmD >= 110);
+
+      if (safetyBanner) {
+        if (isDangerHigh) {
+          safetyBanner.className = 'mb-4 rounded-2xl border-2 border-rose-400 bg-rose-50 p-3.5 text-xs leading-relaxed text-rose-950';
+          safetyBanner.innerHTML = `🚨 <strong>血壓過高安全警示（&ge; 180/110 mmHg）：</strong>今日量測數值超過運動安全上限！請<strong>暫停靠牆半蹲與超慢跑</strong>，靜坐休息並改執行腹式呼吸與關節繞環。`;
+        } else {
+          safetyBanner.className = 'mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs leading-relaxed text-slate-700';
+          safetyBanner.innerHTML = `💡 <strong>運動前安全檢核：</strong>若本日早晨或運動前靜息血壓 <span class="font-bold text-rose-700">&ge; 180/110 mmHg</span>，請暫停靠牆半蹲與原地超慢跑，改執行溫和腹式呼吸與關節繞環。`;
+        }
+      }
+
+      if (workoutWarn) {
+        workoutWarn.classList.toggle('hidden', !isDangerHigh);
+      }
+
+      let amSList = [], amDList = [], pmSList = [], pmDList = [];
+      DAYS_INFO.forEach(d => {
+        const rec = getDayData(selectedWeek, d.id);
+        if (rec.amSbp && rec.amDbp) {
+          amSList.push(Number(rec.amSbp));
+          amDList.push(Number(rec.amDbp));
+        }
+        if (rec.pmSbp && rec.pmDbp) {
+          pmSList.push(Number(rec.pmSbp));
+          pmDList.push(Number(rec.pmDbp));
+        }
+      });
+
+      const allS = [...amSList, ...pmSList];
+      const allD = [...amDList, ...pmDList];
+      const avgDisplay = document.getElementById('weekly-avg-bp-display');
+      const statusBadge = document.getElementById('bp-week-status-badge');
+
+      if (allS.length === 0) {
+        if (avgDisplay) avgDisplay.innerHTML = `-- / -- <span class="text-xs font-normal text-slate-500">mmHg</span>`;
+        setTextById('weekly-avg-subtext', '早均 --/-- ・ 晚均 --/--');
+        if (statusBadge) {
+          statusBadge.textContent = '尚無本週紀錄';
+          statusBadge.className = 'rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600';
+        }
+      } else {
+        const avgS = Math.round(allS.reduce((a, b) => a + b, 0) / allS.length);
+        const avgD = Math.round(allD.reduce((a, b) => a + b, 0) / allD.length);
+        const amAvgStr = amSList.length ? `${Math.round(amSList.reduce((a,b)=>a+b,0)/amSList.length)}/${Math.round(amDList.reduce((a,b)=>a+b,0)/amDList.length)}` : '--/--';
+        const pmAvgStr = pmSList.length ? `${Math.round(pmSList.reduce((a,b)=>a+b,0)/pmSList.length)}/${Math.round(pmDList.reduce((a,b)=>a+b,0)/pmDList.length)}` : '--/--';
+
+        if (avgDisplay) avgDisplay.innerHTML = `${avgS} / ${avgD} <span class="text-xs font-normal text-slate-500">mmHg</span>`;
+        setTextById('weekly-avg-subtext', `早均 ${amAvgStr} ・ 晚均 ${pmAvgStr}（共 ${allS.length} 筆）`);
+
+        if (statusBadge) {
+          if (avgS < 120 && avgD < 80) {
+            statusBadge.textContent = '✅ 正常理想血壓';
+            statusBadge.className = 'rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800';
+          } else if (avgS < 130 && avgD < 80) {
+            statusBadge.textContent = '🟡 血壓偏高期';
+            statusBadge.className = 'rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800';
+          } else if (avgS < 140 || avgD < 90) {
+            statusBadge.textContent = '🟠 第一期高血壓範圍';
+            statusBadge.className = 'rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-800';
+          } else {
+            statusBadge.textContent = '🔴 第二期高血壓範圍';
+            statusBadge.className = 'rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800';
+          }
+        }
+      }
+    }
+
+    function renderBPChart() {
+      setTextById('bp-chart-title', `📈 第 ${selectedWeek} 週早晚收縮壓／舒張壓趨勢圖`);
+      const ctx = document.getElementById('bpTrendChart');
+      if (!ctx) return;
+
+      const labels = DAYS_INFO.map(d => d.short);
+      const amSbpData = DAYS_INFO.map(d => {
+        const v = getDayData(selectedWeek, d.id).amSbp;
+        return v ? Number(v) : null;
+      });
+      const pmSbpData = DAYS_INFO.map(d => {
+        const v = getDayData(selectedWeek, d.id).pmSbp;
+        return v ? Number(v) : null;
+      });
+      const avgDbpData = DAYS_INFO.map(d => {
+        const rec = getDayData(selectedWeek, d.id);
+        const vals = [];
+        if (rec.amDbp) vals.push(Number(rec.amDbp));
+        if (rec.pmDbp) vals.push(Number(rec.pmDbp));
+        return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+      });
+
+      if (bpChartInstance) {
+        bpChartInstance.destroy();
+      }
+
+      bpChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '早晨收縮壓',
+              data: amSbpData,
+              borderColor: '#f2821b',
+              backgroundColor: '#f2821b',
+              tension: 0.3,
+              spanGaps: true,
+              borderWidth: 2.5,
+              pointRadius: 4
+            },
+            {
+              label: '睡前收縮壓',
+              data: pmSbpData,
+              borderColor: '#0284c7',
+              backgroundColor: '#0284c7',
+              tension: 0.3,
+              spanGaps: true,
+              borderWidth: 2.5,
+              pointRadius: 4
+            },
+            {
+              label: '平均舒張壓',
+              data: avgDbpData,
+              borderColor: '#10b981',
+              backgroundColor: '#10b981',
+              borderDash: [4, 4],
+              tension: 0.3,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 3.5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              padding: 10,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            y: {
+              min: 55,
+              max: 190,
+              ticks: { stepSize: 20, font: { size: 10 } },
+              grid: { color: 'rgba(148, 163, 184, 0.15)' }
+            },
+            x: {
+              ticks: { font: { size: 11, weight: 'bold' } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function renderChecklistItem(item, checked, accentClass) {
+      return `
+        <label onclick="toggleTask('${item.id}')" class="task-card ${checked ? 'completed' : ''} flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-sage-400">
+          <div class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${checked ? accentClass : 'border-slate-300 bg-white'}">
+            ${checked ? '<svg class="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+          </div>
+          <div class="flex-1">
+            <div class="task-title text-xs font-bold text-navy-900 sm:text-sm">${item.title}</div>
+            <div class="task-desc mt-0.5 text-[11px] text-slate-500 sm:text-xs">${item.desc}</div>
+          </div>
+        </label>
+      `;
+    }
+
+    function renderHabitsSection() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      let done = 0;
+      const html = DAILY_HABITS.map(h => {
+        const chk = !!dData.checks[h.id];
+        if (chk) done++;
+        return renderChecklistItem(h, chk, 'border-amber-600 bg-amber-600');
+      }).join('');
+      const container = document.getElementById('habits-checklist-container');
+      if (container) container.innerHTML = html;
+      setTextById('habits-counter', `${done} / ${DAILY_HABITS.length}`);
+    }
+
+    function renderDietSection() {
+      const phaseInfo = getPhaseForWeek(selectedWeek);
+      const phaseNote = document.getElementById('week-phase-diet-note');
+      if (phaseNote) {
+        phaseNote.className = `mb-4 rounded-2xl border p-3 text-xs leading-relaxed ${phaseInfo.noteClass}`;
+        phaseNote.innerHTML = phaseInfo.noteHtml;
+      }
+
+      const diet = getDietForDay(selectedWeek, selectedDayId);
+      const dData = getDayData(selectedWeek, selectedDayId);
+
+      const renderGroup = (title, badgeCls, list) => `
+        <div class="space-y-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5">
+          <span class="inline-flex rounded-lg ${badgeCls} px-2.5 py-1 text-xs font-black">${title}</span>
+          <div class="space-y-2 pt-1">
+            ${list.map(item => renderChecklistItem(item, !!dData.checks[item.id], 'border-sage-600 bg-sage-600')).join('')}
+          </div>
+        </div>
+      `;
+
+      const dietContainer = document.getElementById('diet-checklist-container');
+      if (dietContainer) {
+        dietContainer.innerHTML =
+          renderGroup(diet.m1Title, 'bg-sage-100 text-sage-900', diet.m1) +
+          renderGroup(diet.m2Title, 'bg-yam-100 text-yam-900', diet.m2);
+      }
+
+      const cups = dData.waterCups || 0;
+      setTextById('water-cc-display', (cups * 300).toLocaleString());
+      let cupsHtml = '';
+      for (let i = 1; i <= 8; i++) {
+        const filled = i <= cups;
+        cupsHtml += `
+          <button onclick="setWaterCups(${i})" class="flex flex-col items-center justify-center rounded-xl border py-2 transition active:scale-95 ${
+            filled ? 'border-sky-500 bg-sky-500 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-400 hover:border-sky-300'
+          }">
+            <span class="text-sm">${filled ? '💧' : '🥛'}</span>
+            <span class="mt-0.5 text-[10px] font-bold">${i * 300}</span>
+          </button>
+        `;
+      }
+      const waterGrid = document.getElementById('water-cups-grid');
+      if (waterGrid) waterGrid.innerHTML = cupsHtml;
+    }
+
+    function renderWorkoutSection() {
+      const workout = WORKOUT_PLAN[selectedDayId];
+      const dData = getDayData(selectedWeek, selectedDayId);
+
+      setTextById('workout-type-badge', workout.theme);
+      setTextById('workout-subtitle', `${workout.duration}・${workout.benefit}`);
+
+      const squatBadge = document.getElementById('squat-set-indicator');
+      const squatBtn = document.getElementById('btn-add-squat');
+      if (squatBadge && squatBtn) {
+        if (workout.hasSquat) {
+          squatBadge.classList.remove('hidden');
+          squatBtn.classList.remove('hidden');
+          squatBadge.textContent = `半蹲組數：${dData.squatSets || 0} / 4 組`;
+        } else {
+          squatBadge.classList.add('hidden');
+          squatBtn.classList.add('hidden');
+        }
+      }
+
+      let done = 0;
+      const html = workout.items.map(item => {
+        const chk = !!dData.checks[item.id];
+        if (chk) done++;
+        return renderChecklistItem(item, chk, 'border-emerald-600 bg-emerald-600');
+      }).join('');
+
+      const wContainer = document.getElementById('workout-checklist-container');
+      if (wContainer) wContainer.innerHTML = html;
+      setTextById('workout-counter', `${done} / ${workout.items.length}`);
+    }
+
+    // YouTube Follow-Along Videos mapped to indoor workout themes
+    const YT_FOLLOW_GUIDES = {
+      1: [
+        {
+          id: 'YQGfUEv2ewo',
+          title: '節拍超慢跑 180bpm／30分鐘節拍器【早安健康】',
+          channel: '早安健康',
+          duration: '30:13',
+          note: '適合搭配 15 分鐘原地超慢跑穩定步頻，前腳掌輕著地',
+          url: 'https://www.youtube.com/watch?v=YQGfUEv2ewo',
+          thumb: 'https://img.youtube.com/vi/YQGfUEv2ewo/hqdefault.jpg'
+        },
+        {
+          id: '95Z0J7qVkhY',
+          title: '靠牆深蹲動作要領',
+          channel: '超慢跑核心訓練 徐棟英教官',
+          duration: '00:52',
+          note: '先看動作要領再做靠牆半蹲 4 組，全程順暢呼吸不憋氣',
+          url: 'https://www.youtube.com/watch?v=95Z0J7qVkhY',
+          thumb: 'https://img.youtube.com/vi/95Z0J7qVkhY/hqdefault.jpg'
+        }
+      ],
+      2: [
+        {
+          id: 'DF1qKSlVXX8',
+          title: '【2025新版✨】節拍超慢跑 180BPM 30分鐘！免設定節奏，徐棟英教練直接帶你跑【早安健康】',
+          channel: '早安健康',
+          duration: '30:37',
+          note: '心肺耐力日跟練，可分段累積 25 分鐘輕鬆微笑超慢跑',
+          url: 'https://www.youtube.com/watch?v=DF1qKSlVXX8',
+          thumb: 'https://img.youtube.com/vi/DF1qKSlVXX8/hqdefault.jpg'
+        },
+        {
+          id: 'TtbrOIUYtGw',
+          title: '30分鐘 超慢跑｜初學節拍超慢跑｜180BPM｜暖身+伸展｜有音樂♫',
+          channel: '一米六健身服利社',
+          duration: '35:07',
+          note: '含暖身與伸展引導，室內免器材輕鬆跟練',
+          url: 'https://www.youtube.com/watch?v=TtbrOIUYtGw',
+          thumb: 'https://img.youtube.com/vi/TtbrOIUYtGw/hqdefault.jpg'
+        }
+      ],
+      3: [
+        {
+          id: 'RUXp0DL-DdM',
+          title: '每天一蹲，血壓降下來',
+          channel: '啾c物理治療師',
+          duration: '01:42',
+          note: '了解等長靠牆蹲對血管張力的幫助與安全呼吸要點',
+          url: 'https://www.youtube.com/watch?v=RUXp0DL-DdM',
+          thumb: 'https://img.youtube.com/vi/RUXp0DL-DdM/hqdefault.jpg'
+        },
+        {
+          id: 'TLCTEUL_-Cs',
+          title: '20分鐘 超慢跑｜初階 節拍超慢跑｜180BPM｜無中斷廣告｜原地超慢跑',
+          channel: '一米六健身服利社',
+          duration: '20:53',
+          note: '搭配 15 分鐘原地輕快踏步／超慢跑暖身循環',
+          url: 'https://www.youtube.com/watch?v=TLCTEUL_-Cs',
+          thumb: 'https://img.youtube.com/vi/TLCTEUL_-Cs/hqdefault.jpg'
+        }
+      ],
+      4: [
+        {
+          id: '6t8fOxGhQ18',
+          title: '呼吸練習第二招，腹式呼吸練習早晚十分鐘',
+          channel: '原氣醫生Dr.BreathE',
+          duration: '00:29',
+          note: '自律神經調節日先練 5 分鐘腹式呼吸，啟動副交感神經',
+          url: 'https://www.youtube.com/watch?v=6t8fOxGhQ18',
+          thumb: 'https://img.youtube.com/vi/6t8fOxGhQ18/hqdefault.jpg'
+        },
+        {
+          id: 'fNMiULnyxuU',
+          title: '八段錦針對脾胃上下對拉 逆腹式呼吸法增強腸道消化 伸展雙手同時舒緩眼睛疲勞',
+          channel: '健康旦 HiEggo',
+          duration: '10:37',
+          note: '搭配 20 分鐘溫和伸展與八段錦理氣舒壓',
+          url: 'https://www.youtube.com/watch?v=fNMiULnyxuU',
+          thumb: 'https://img.youtube.com/vi/fNMiULnyxuU/hqdefault.jpg'
+        }
+      ],
+      5: [
+        {
+          id: 'YQGfUEv2ewo',
+          title: '節拍超慢跑 180bpm／30分鐘節拍器【早安健康】',
+          channel: '早安健康',
+          duration: '30:13',
+          note: '血管彈性日 C 超慢跑 15 分鐘節奏搭配',
+          url: 'https://www.youtube.com/watch?v=YQGfUEv2ewo',
+          thumb: 'https://img.youtube.com/vi/YQGfUEv2ewo/hqdefault.jpg'
+        },
+        {
+          id: '6AliGSYKV2k',
+          title: '入門靠牆深蹲延緩老化！改善髖關節與膝關節柔韌度 ｜徐棟英 體適能教練【早安健康】',
+          channel: '早安健康',
+          duration: '01:17',
+          note: '靠牆半蹲 4 組姿勢校準，保持膝蓋與腳尖同向',
+          url: 'https://www.youtube.com/watch?v=6AliGSYKV2k',
+          thumb: 'https://img.youtube.com/vi/6AliGSYKV2k/hqdefault.jpg'
+        }
+      ],
+      6: [
+        {
+          id: 'DF1qKSlVXX8',
+          title: '【2025新版✨】節拍超慢跑 180BPM 30分鐘！免設定節奏，徐棟英教練直接帶你跑【早安健康】',
+          channel: '早安健康',
+          duration: '30:37',
+          note: '分段有氧日早晚各 15 分鐘室內跟練參考',
+          url: 'https://www.youtube.com/watch?v=DF1qKSlVXX8',
+          thumb: 'https://img.youtube.com/vi/DF1qKSlVXX8/hqdefault.jpg'
+        },
+        {
+          id: 'O-C4t_cYWXM',
+          title: '超慢跑初學專用❤️4｜(只有節拍器)｜180BPM跑30分鐘｜美麗陽光｜班長超慢跑',
+          channel: '班長 布萊恩',
+          duration: '34:52',
+          note: '純節拍器引導，適合邊看電視邊維持穩定步頻',
+          url: 'https://www.youtube.com/watch?v=O-C4t_cYWXM',
+          thumb: 'https://img.youtube.com/vi/O-C4t_cYWXM/hqdefault.jpg'
+        }
+      ],
+      0: [
+        {
+          id: 'fNMiULnyxuU',
+          title: '八段錦針對脾胃上下對拉 逆腹式呼吸法增強腸道消化 伸展雙手同時舒緩眼睛疲勞',
+          channel: '健康旦 HiEggo',
+          duration: '10:37',
+          note: '動態恢復日溫和伸展與呼吸放鬆，迎接新的一週',
+          url: 'https://www.youtube.com/watch?v=fNMiULnyxuU',
+          thumb: 'https://img.youtube.com/vi/fNMiULnyxuU/hqdefault.jpg'
+        },
+        {
+          id: '6t8fOxGhQ18',
+          title: '呼吸練習第二招，腹式呼吸練習早晚十分鐘',
+          channel: '原氣醫生Dr.BreathE',
+          duration: '00:29',
+          note: '搭配全身關節繞環與深呼吸，降低交感神經緊繃',
+          url: 'https://www.youtube.com/watch?v=6t8fOxGhQ18',
+          thumb: 'https://img.youtube.com/vi/6t8fOxGhQ18/hqdefault.jpg'
+        }
+      ]
+    };
+
+    let activeVideoIndexByDay = {};
+    let useNoCookieEmbed = true;
+
+    function buildYouTubeEmbedUrl(videoId, shouldAutoplay = false) {
+      const cleanId = encodeURIComponent(String(videoId || '').trim());
+      const host = useNoCookieEmbed ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com';
+      const params = new URLSearchParams({
+        autoplay: shouldAutoplay ? '1' : '0',
+        rel: '0',
+        playsinline: '1',
+        modestbranding: '1'
+      });
+      return `${host}/embed/${cleanId}?${params.toString()}`;
+    }
+
+    function syncEmbedModeButton() {
+      const btn = document.getElementById('yt-embed-mode-btn');
+      if (!btn) return;
+      btn.textContent = useNoCookieEmbed ? '🛡️ 強化嵌入' : '🌐 標準嵌入';
+    }
+
+    function toggleEmbedDomainFallback() {
+      useNoCookieEmbed = !useNoCookieEmbed;
+      syncEmbedModeButton();
+      const videos = YT_FOLLOW_GUIDES[selectedDayId] || YT_FOLLOW_GUIDES[1];
+      const currentIdx = activeVideoIndexByDay[selectedDayId] || 0;
+      const vid = videos[Math.max(0, Math.min(currentIdx, videos.length - 1))];
+      const iframe = document.getElementById('yt-active-iframe');
+      if (iframe && vid) {
+        iframe.src = buildYouTubeEmbedUrl(vid.id, false);
+      }
+      showToast(useNoCookieEmbed ? '已切換為 youtube-nocookie 強化嵌入模式' : '已切換為標準 youtube.com 嵌入模式');
+    }
+
+    function playYouTubeVideo(dayId, idx, shouldAutoplay = true) {
+      const videos = YT_FOLLOW_GUIDES[dayId] || YT_FOLLOW_GUIDES[1];
+      const safeIdx = Math.max(0, Math.min(idx, videos.length - 1));
+      activeVideoIndexByDay[dayId] = safeIdx;
+      const vid = videos[safeIdx];
+
+      const iframe = document.getElementById('yt-active-iframe');
+      const titleEl = document.getElementById('yt-active-title');
+      const metaEl = document.getElementById('yt-active-meta');
+      const extLink = document.getElementById('yt-active-ext-link');
+
+      if (iframe && vid) {
+        iframe.removeAttribute('src');
+        requestAnimationFrame(() => {
+          iframe.src = buildYouTubeEmbedUrl(vid.id, shouldAutoplay);
+        });
+      }
+      if (titleEl && vid) titleEl.textContent = vid.title;
+      if (metaEl && vid) metaEl.textContent = `${vid.channel}・${vid.duration}・${vid.note}`;
+      if (extLink && vid) extLink.href = vid.url;
+
+      // Auto-populate video logbook title if empty
+      const dData = getDayData(selectedWeek, dayId);
+      if (!dData.videoLog) dData.videoLog = { title: '', mins: '', feel: '', note: '' };
+      if (!dData.videoLog.title && vid) {
+        dData.videoLog.title = vid.title;
+        saveAppState();
+        if (dayId === selectedDayId) {
+          renderVideoLogbookSection();
+        }
+      }
+
+      renderYouTubeCardsOnly(dayId, safeIdx);
+      if (shouldAutoplay && vid) {
+        showToast(`▶ 正在播放：${vid.title}`);
+      }
+    }
+
+    function renderYouTubeCardsOnly(dayId, activeIdx) {
+      const container = document.getElementById('youtube-follow-container');
+      if (!container) return;
+      const videos = YT_FOLLOW_GUIDES[dayId] || YT_FOLLOW_GUIDES[1];
+
+      container.innerHTML = videos.map((v, idx) => {
+        const isPlaying = idx === activeIdx;
+        return `
+          <div class="flex items-start gap-3 rounded-2xl border p-2.5 shadow-2xs transition ${
+            isPlaying ? 'border-rose-400 bg-rose-50/70 ring-1 ring-rose-300' : 'border-slate-200 bg-white hover:border-rose-300'
+          }">
+            <button type="button" onclick="playYouTubeVideo(${dayId}, ${idx}, true)" class="relative h-16 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-900 text-left">
+              <img src="${v.thumb}" alt="${v.title}" onerror="this.src='https://placehold.co/224x128/0f172a/ffffff?text=YouTube'" class="h-full w-full object-cover opacity-95" />
+              <span class="absolute inset-0 flex items-center justify-center bg-black/25 text-xs font-black text-white">${isPlaying ? '🔊 播放中' : '▶ 播放'}</span>
+              <span class="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">${v.duration}</span>
+            </button>
+            <div class="min-w-0 flex-1">
+              <button type="button" onclick="playYouTubeVideo(${dayId}, ${idx}, true)" class="line-clamp-2 text-left text-xs font-black ${isPlaying ? 'text-rose-700' : 'text-navy-900 hover:text-rose-700'}">${v.title}</button>
+              <div class="mt-0.5 flex items-center justify-between gap-2">
+                <span class="text-[10px] font-bold text-slate-500">${v.channel}</span>
+                <button type="button" onclick="playYouTubeVideo(${dayId}, ${idx}, true)" class="rounded-lg ${isPlaying ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-800 hover:bg-rose-200'} px-2 py-0.5 text-[10px] font-bold">
+                  ${isPlaying ? '▶ 播放中' : '▶ 直接播放'}
+                </button>
+              </div>
+              <div class="mt-1 line-clamp-1 text-[11px] text-slate-600">${v.note}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderYouTubeSection() {
+      syncEmbedModeButton();
+      const dayTag = document.getElementById('yt-day-tag');
+      const dayObj = DAYS_INFO.find(d => d.id === selectedDayId);
+      const workout = WORKOUT_PLAN[selectedDayId];
+      if (dayTag && dayObj && workout) {
+        dayTag.textContent = `${dayObj.short}・${workout.theme}`;
+      }
+
+      const currentIdx = activeVideoIndexByDay[selectedDayId] || 0;
+      const videos = YT_FOLLOW_GUIDES[selectedDayId] || YT_FOLLOW_GUIDES[1];
+      const vid = videos[Math.max(0, Math.min(currentIdx, videos.length - 1))];
+
+      const iframe = document.getElementById('yt-active-iframe');
+      const titleEl = document.getElementById('yt-active-title');
+      const metaEl = document.getElementById('yt-active-meta');
+      const extLink = document.getElementById('yt-active-ext-link');
+
+      if (iframe && vid) {
+        iframe.src = buildYouTubeEmbedUrl(vid.id, false);
+      }
+      if (titleEl && vid) titleEl.textContent = vid.title;
+      if (metaEl && vid) metaEl.textContent = `${vid.channel}・${vid.duration}・${vid.note}`;
+      if (extLink && vid) extLink.href = vid.url;
+
+      renderYouTubeCardsOnly(selectedDayId, currentIdx);
+    }
+
+    function logCurrentVideoToDiary() {
+      const videos = YT_FOLLOW_GUIDES[selectedDayId] || YT_FOLLOW_GUIDES[1];
+      const currentIdx = activeVideoIndexByDay[selectedDayId] || 0;
+      const vid = videos[Math.max(0, Math.min(currentIdx, videos.length - 1))];
+      const dData = getDayData(selectedWeek, selectedDayId);
+      if (!dData.videoLog) dData.videoLog = { title: '', mins: '', feel: '', note: '' };
+      if (vid) {
+        dData.videoLog.title = vid.title;
+        if (!dData.videoLog.mins) {
+          const parsedMin = parseInt(String(vid.duration || '').split(':')[0], 10);
+          if (!isNaN(parsedMin) && parsedMin > 0) {
+            dData.videoLog.mins = String(Math.min(parsedMin, 30));
+          }
+        }
+      }
+      saveAppState();
+      renderVideoLogbookSection();
+      showToast('📓 已將目前跟練影片帶入影片網誌');
+    }
+
+    function saveVideoLogData(notify = false) {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      if (!dData.videoLog) dData.videoLog = { title: '', mins: '', feel: '', note: '' };
+      const getVal = id => {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+      };
+      dData.videoLog.title = getVal('yt-log-title');
+      dData.videoLog.mins = getVal('yt-log-mins');
+      dData.videoLog.feel = getVal('yt-log-feel');
+      dData.videoLog.note = getVal('yt-log-note');
+
+      saveAppState();
+      renderVideoLogbookHistory();
+      if (notify) {
+        showToast('💾 已儲存本日影片網誌');
+      }
+    }
+
+    function renderVideoLogbookHistory() {
+      const histEl = document.getElementById('yt-log-history');
+      if (!histEl) return;
+
+      const entries = DAYS_INFO.map(d => {
+        const rec = getDayData(selectedWeek, d.id);
+        const log = rec.videoLog || {};
+        const hasContent = log.title || log.mins || log.feel || log.note;
+        if (!hasContent) return null;
+        return `
+          <button type="button" onclick="selectDay(${d.id})" class="flex w-full items-start justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-left hover:border-sage-300 hover:bg-sage-50/50">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="rounded bg-sage-700 px-1.5 py-0.5 text-[10px] font-bold text-white">${d.short}</span>
+                <span class="truncate text-[11px] font-bold text-navy-900">${log.title || '未填寫影片名稱'}</span>
+              </div>
+              ${log.note ? `<div class="mt-0.5 truncate text-[10px] text-slate-600">📝 ${log.note}</div>` : ''}
+            </div>
+            <div class="shrink-0 text-right text-[10px] font-bold">
+              ${log.mins ? `<div class="text-emerald-700">${log.mins} 分鐘</div>` : ''}
+              ${log.feel ? `<div class="text-slate-600">${log.feel}</div>` : ''}
+            </div>
+          </button>
+        `;
+      }).filter(Boolean);
+
+      if (entries.length === 0) {
+        histEl.innerHTML = `<div class="rounded-xl bg-slate-50 px-3 py-2 text-[10px] text-slate-400">第 ${selectedWeek} 週尚無影片網誌紀錄，播放或填寫上方欄位即可累積。</div>`;
+      } else {
+        histEl.innerHTML = entries.join('');
+      }
+    }
+
+    function renderVideoLogbookSection() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      if (!dData.videoLog) dData.videoLog = { title: '', mins: '', feel: '', note: '' };
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+      };
+      setVal('yt-log-title', dData.videoLog.title);
+      setVal('yt-log-mins', dData.videoLog.mins);
+      setVal('yt-log-feel', dData.videoLog.feel);
+      setVal('yt-log-note', dData.videoLog.note);
+      renderVideoLogbookHistory();
+    }
+
+    // Export & Import JSON Backup for 26-Week LocalStorage Data
+    function exportBackupJSON() {
+      try {
+        const payload = {
+          app: '26week_health_dashboard',
+          exportedAt: new Date().toISOString(),
+          data: appState
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `26週護肝穩壓備份_第${selectedWeek}週.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('💾 已匯出 26 週紀錄備份檔（JSON）');
+      } catch (e) {
+        console.warn('Export backup error:', e);
+        showToast('匯出備份失敗，請稍後再試');
+      }
+    }
+
+    function importBackupJSON(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const importedState = parsed && parsed.data ? parsed.data : parsed;
+          if (!importedState || typeof importedState.weeks !== 'object') {
+            showToast('備份檔格式不正確');
+            return;
+          }
+          appState = {
+            currentWeek: importedState.currentWeek || 1,
+            weeks: importedState.weeks
+          };
+          selectedWeek = appState.currentWeek;
+          saveAppState();
+          renderAll();
+          showToast('📂 已成功還原 26 週打卡與血壓紀錄！');
+        } catch (err) {
+          console.warn('Import backup error:', err);
+          showToast('無法解析備份檔案');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ==========================================
+    // 5. INTERACTIONS & DATA UPDATES
+    // ==========================================
+    function selectWeek(weekNum) {
+      if (weekNum < 1) weekNum = 1;
+      if (weekNum > TOTAL_WEEKS) weekNum = TOTAL_WEEKS;
+      selectedWeek = weekNum;
+      saveAppState();
+      renderAll();
+    }
+
+    function changeWeek(delta) {
+      selectWeek(selectedWeek + delta);
+    }
+
+    function selectDay(dayId) {
+      selectedDayId = dayId;
+      resetTimer();
+      renderAll();
+    }
+
+    function toggleTask(taskId) {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      dData.checks[taskId] = !dData.checks[taskId];
+      saveAppState();
+      renderAll();
+
+      const stats = getDayStats(selectedWeek, selectedDayId);
+      if (stats.percent === 100) {
+        showToast(`🎉 第 ${selectedWeek} 週・${DAYS_INFO.find(d=>d.id===selectedDayId).name} 任務 100% 全部完成！`);
+      }
+    }
+
+    function setWaterCups(cupIdx) {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      dData.waterCups = (dData.waterCups === cupIdx) ? cupIdx - 1 : cupIdx;
+      saveAppState();
+      renderAll();
+      if (dData.waterCups === 7 || dData.waterCups === 8) {
+        showToast(`💧 今日飲水已達 ${dData.waterCups * 300} c.c.，排鈉目標達成！`);
+      }
+    }
+
+    function saveBPData(notify = false) {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      const getVal = id => {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+      };
+      dData.amSbp = getVal('bp-am-sbp');
+      dData.amDbp = getVal('bp-am-dbp');
+      dData.amHr = getVal('bp-am-hr');
+      dData.pmSbp = getVal('bp-pm-sbp');
+      dData.pmDbp = getVal('bp-pm-dbp');
+      dData.pmHr = getVal('bp-pm-hr');
+      dData.weight = getVal('input-weight');
+
+      if (dData.amSbp && dData.amDbp) {
+        dData.checks['h_bp_am'] = true;
+      }
+      if (dData.pmSbp && dData.pmDbp) {
+        dData.checks['h_footbath'] = true;
+      }
+
+      saveAppState();
+      evaluateBPSafetyAndWeeklyAvg();
+      renderBPChart();
+      renderWeekdayTabs();
+      renderHeroCard();
+      renderHabitsSection();
+      if (notify) {
+        showToast('💾 已儲存本日血壓與體重紀錄');
+      }
+    }
+
+    function clearTodayBPData() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      dData.amSbp = '';
+      dData.amDbp = '';
+      dData.amHr = '';
+      dData.pmSbp = '';
+      dData.pmDbp = '';
+      dData.pmHr = '';
+      dData.weight = '';
+      saveAppState();
+      renderBPSection();
+      renderWeekdayTabs();
+      renderHeroCard();
+      showToast('已清空本日血壓與體重欄位');
+    }
+
+    function incrementSquatSet() {
+      const dData = getDayData(selectedWeek, selectedDayId);
+      dData.squatSets = ((dData.squatSets || 0) + 1) % 5;
+      if (dData.squatSets === 4) {
+        dData.checks['w_3'] = true;
+        showToast('💪 已完成 4 組靠牆半蹲，自動勾選該運動項目！');
+      } else if (dData.squatSets > 0) {
+        showToast(`已完成第 ${dData.squatSets} / 4 組靠牆半蹲，記得休息 60 秒`);
+      }
+      saveAppState();
+      renderAll();
+    }
+
+    // ==========================================
+    // 6. COUNTDOWN TIMER & WEB AUDIO 180 BPM METRONOME
+    // ==========================================
+    let timerSeconds = 45;
+    let timerInitial = 45;
+    let timerInterval = null;
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function setTimerPreset(sec, label) {
+      pauseTimer();
+      timerSeconds = sec;
+      timerInitial = sec;
+      setTextById('timer-display', formatTime(timerSeconds));
+      setTextById('timer-mode-label', label);
+    }
+
+    function toggleTimer() {
+      if (timerInterval) pauseTimer();
+      else startTimer();
+    }
+
+    function startTimer() {
+      if (timerSeconds <= 0) timerSeconds = timerInitial;
+      const btn = document.getElementById('timer-start-btn');
+      if (btn) {
+        btn.textContent = '⏸ 暫停';
+        btn.classList.remove('bg-sage-600', 'hover:bg-sage-700');
+        btn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+      }
+
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        setTextById('timer-display', formatTime(timerSeconds));
+        if (timerSeconds <= 0) {
+          pauseTimer();
+          playBeepTone(880, 0.25);
+          showToast('⏰ 計時結束！請順暢呼吸調整節奏');
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      const btn = document.getElementById('timer-start-btn');
+      if (btn) {
+        btn.textContent = '▶ 開始計時';
+        btn.classList.add('bg-sage-600', 'hover:bg-sage-700');
+        btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+      }
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timerSeconds = timerInitial;
+      setTextById('timer-display', formatTime(timerSeconds));
+    }
+
+    let audioCtx = null;
+    let metronomeInterval = null;
+    let currentBPM = 180;
+    let beatStep = 0;
+
+    function playBeepTone(freq = 780, duration = 0.045) {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.28, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.warn('Web Audio not supported:', e);
+      }
+    }
+
+    function setMetronomeBPM(bpm) {
+      currentBPM = bpm;
+      [160, 170, 180].forEach(val => {
+        const b = document.getElementById(`bpm-btn-${val}`);
+        if (!b) return;
+        if (val === bpm) {
+          b.className = 'rounded-lg bg-yam-500 px-2.5 py-1 text-[11px] font-black text-white shadow-2xs';
+        } else {
+          b.className = 'rounded-lg px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white';
+        }
+      });
+      if (metronomeInterval) {
+        stopMetronome();
+        startMetronome();
+      }
+    }
+
+    function toggleMetronome() {
+      if (metronomeInterval) stopMetronome();
+      else startMetronome();
+    }
+
+    function startMetronome() {
+      const btn = document.getElementById('metronome-toggle-btn');
+      const dot = document.getElementById('metronome-dot');
+      if (btn) {
+        btn.textContent = '⏹ 停止節拍';
+        btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+        btn.classList.add('bg-rose-500', 'hover:bg-rose-600');
+      }
+
+      const intervalMs = Math.round(60000 / currentBPM);
+      beatStep = 0;
+      const tick = () => {
+        const isAccent = beatStep % 2 === 0;
+        playBeepTone(isAccent ? 880 : 660, 0.04);
+        if (dot) {
+          dot.classList.remove('beat-active');
+          void dot.offsetWidth;
+          dot.classList.add('beat-active');
+        }
+        beatStep++;
+      };
+      tick();
+      metronomeInterval = setInterval(tick, intervalMs);
+    }
+
+    function stopMetronome() {
+      if (metronomeInterval) {
+        clearInterval(metronomeInterval);
+        metronomeInterval = null;
+      }
+      const btn = document.getElementById('metronome-toggle-btn');
+      if (btn) {
+        btn.textContent = '🔊 啟動節拍';
+        btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+        btn.classList.remove('bg-rose-500', 'hover:bg-rose-600');
+      }
+    }
+
+    // ==========================================
+    // 7. EXPORTS, 26-WEEK OVERVIEW MODAL & RESET
+    // ==========================================
+    function copyTextFallback(text, successMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (err) {
+        showToast('複製失敗，請手動選取');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function copyDeliveryNote() {
+      const note = '【醫療飲食控制】不要飯（請換雙份綠色蔬菜），雞胸肉與青菜請完全水煮／原味烹調，不加鹽、不撒胡椒粉、不淋醬汁，謝謝！';
+      copyTextFallback(note, '📋 已複製無調味外送備註，可直接貼上外送平台！');
+    }
+
+    function exportDoctorReport() {
+      const phaseInfo = getPhaseForWeek(selectedWeek);
+      const weekStats = getWeekSummaryStats(selectedWeek);
+      const lines = [
+        `【心臟內科回診追蹤摘要｜26週護肝穩壓計畫】`,
+        `目前進度：第 ${selectedWeek} 週（${phaseInfo.badge} ${phaseInfo.title}）`,
+        `本週生活習慣與飲食運動執行率：${weekStats.avgPercent}%（滿分達標 ${weekStats.fullDays}/7 天）`,
+        `----------------------------------------`,
+        `📅 第 ${selectedWeek} 週 722 居家血壓與體重明細：`
+      ];
+
+      let amS = [], amD = [], pmS = [], pmD = [];
+      DAYS_INFO.forEach(d => {
+        const rec = getDayData(selectedWeek, d.id);
+        const amStr = (rec.amSbp && rec.amDbp) ? `早 ${rec.amSbp}/${rec.amDbp}${rec.amHr ? `(${rec.amHr})` : ''}` : '早 --/--';
+        const pmStr = (rec.pmSbp && rec.pmDbp) ? `晚 ${rec.pmSbp}/${rec.pmDbp}${rec.pmHr ? `(${rec.pmHr})` : ''}` : '晚 --/--';
+        const wtStr = rec.weight ? `｜體重 ${rec.weight}kg` : '';
+        lines.push(`・${d.short}：${amStr} ／ ${pmStr}${wtStr}`);
+
+        if (rec.amSbp && rec.amDbp) { amS.push(Number(rec.amSbp)); amD.push(Number(rec.amDbp)); }
+        if (rec.pmSbp && rec.pmDbp) { pmS.push(Number(rec.pmSbp)); pmD.push(Number(rec.pmDbp)); }
+      });
+
+      const allS = [...amS, ...pmS];
+      const allD = [...amD, ...pmD];
+      lines.push(`----------------------------------------`);
+      if (allS.length > 0) {
+        const avgS = Math.round(allS.reduce((a,b)=>a+b,0)/allS.length);
+        const avgD = Math.round(allD.reduce((a,b)=>a+b,0)/allD.length);
+        lines.push(`📊 本週總平均血壓：${avgS} / ${avgD} mmHg（共 ${allS.length} 筆紀錄）`);
+      } else {
+        lines.push(`📊 本週總平均血壓：尚無完整輸入數據`);
+      }
+      lines.push(`※ 持續遵照醫囑服藥，無自行停藥。`);
+
+      copyTextFallback(lines.join('\n'), '🩺 已複製「心臟內科回診摘要」，可貼至 LINE 或記事本供醫師評估！');
+    }
+
+    function openOverviewModal() {
+      const body = document.getElementById('overview-modal-body');
+      if (!body) return;
+      const phases = [
+        { title: '🟢 第一階段（第 1～8 週）：排鈉適應與基本輪替期', range: [1, 8], color: 'border-emerald-200 bg-emerald-50/40' },
+        { title: '🔵 第二階段（第 9～17 週）：高鉀深綠蔬菜升級與口感重塑期', range: [9, 17], color: 'border-sky-200 bg-sky-50/40' },
+        { title: '🟣 第三階段（第 18～26 週）：代謝突破與生活型態定型期', range: [18, 26], color: 'border-purple-200 bg-purple-50/40' }
+      ];
+
+      body.innerHTML = phases.map(p => {
+        let cards = '';
+        for (let w = p.range[0]; w <= p.range[1]; w++) {
+          const sum = getWeekSummaryStats(w);
+          const isCur = w === selectedWeek;
+          const isMile = MILESTONE_WEEKS.includes(w);
+          cards += `
+            <button onclick="selectWeek(${w}); closeOverviewModal();" class="flex flex-col items-start rounded-2xl border p-3 text-left transition hover:shadow-md ${
+              isCur ? 'border-2 border-sage-700 bg-white ring-2 ring-sage-200' : 'border-slate-200 bg-white hover:border-sage-400'
+            }">
+              <div class="flex w-full items-center justify-between">
+                <span class="text-xs font-black text-navy-900">第 ${w} 週</span>
+                ${isMile ? '<span class="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-700">🩺 檢核週</span>' : ''}
+              </div>
+              <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div class="h-full bg-sage-600" style="width: ${sum.avgPercent}%"></div>
+              </div>
+              <div class="mt-1.5 flex w-full items-center justify-between text-[10px] text-slate-500">
+                <span>均達成 ${sum.avgPercent}%</span>
+                <span class="font-bold text-emerald-700">${sum.fullDays}/7日</span>
+              </div>
+            </button>
+          `;
+        }
+        return `
+          <div class="rounded-2xl border ${p.color} p-4">
+            <h4 class="mb-3 text-xs font-black text-navy-900 sm:text-sm">${p.title}</h4>
+            <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">${cards}</div>
+          </div>
+        `;
+      }).join('');
+
+      const modal = document.getElementById('overview-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeOverviewModal() {
+      const modal = document.getElementById('overview-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    let pendingResetType = null;
+
+    function requestReset(type) {
+      pendingResetType = type;
+      const modal = document.getElementById('confirm-modal');
+      if (type === 'today') {
+        const dayName = DAYS_INFO.find(d => d.id === selectedDayId).name;
+        setTextById('confirm-title', `重置「第 ${selectedWeek} 週 · ${dayName}」紀錄？`);
+        setTextById('confirm-desc', '將清空該日的飲食、運動、生活習慣勾選、飲水與血壓紀錄。');
+      } else {
+        setTextById('confirm-title', `重置「第 ${selectedWeek} 週」整週紀錄？`);
+        setTextById('confirm-desc', `將清空第 ${selectedWeek} 週（週一至週日）所有打卡與 722 血壓數據。`);
+      }
+
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirm-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+      pendingResetType = null;
+    }
+
+    const confirmActionBtn = document.getElementById('confirm-action-btn');
+    if (confirmActionBtn) {
+      confirmActionBtn.addEventListener('click', () => {
+        const weekKey = `week_${selectedWeek}`;
+        if (!appState.weeks[weekKey]) {
+          appState.weeks[weekKey] = createEmptyWeekRecord();
+        }
+        if (pendingResetType === 'today') {
+          const dayKey = DAYS_INFO.find(d => d.id === selectedDayId).key;
+          appState.weeks[weekKey][dayKey] = createEmptyDayRecord();
+          showToast('已重置本日紀錄');
+        } else if (pendingResetType === 'week') {
+          appState.weeks[weekKey] = createEmptyWeekRecord();
+          showToast(`已重置第 ${selectedWeek} 週所有紀錄`);
+        }
+        saveAppState();
+        closeConfirmModal();
+        renderAll();
+      });
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      setTextById('toast-message', msg);
+      if (toast) {
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+      }
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        if (toast) {
+          toast.classList.add('hidden');
+          toast.classList.remove('flex');
+        }
+      }, 3200);
+    }
+
+    // Boot Application
+    window.addEventListener('DOMContentLoaded', () => {
+      loadModePref();
+      renderAll();
+    });
+
+    window.addEventListener('resize', () => {
+      if (modePref === 'auto') {
+        applyModeLayout();
+      }
+    });
+  </script>
+</body>
+</html>
